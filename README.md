@@ -1,7 +1,7 @@
 Helium
 -
 
-Helium is a scratch mod that compiles Scratch projects to make them run fast.
+Helium is a Scratch mod that compiles Scratch projects to make them run fast.
 
 License
 -
