@@ -1,5 +1,21 @@
 * {
-	font-family: "Montserrat" sans-serif;
+	font-family: "Montserrat", sans-serif;
+}
+
+body {
+	margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+	font-weight: normal;
+}
+
+input[type="file"] {
+	display: none;
+}
+
+p {
+	font-size: 14px;
 }
 
 .centered {
@@ -7,6 +23,53 @@
 	justify-content: center;
 }
 
+.customfileinput {
+	border: 1px solid black;
+	display: inline-block;
+	padding: 10px;
+	cursor: pointer;
+}
+
+.menu {
+	list-style-type: none;
+	margin: 0px;
+	padding: 5px;
+	width: 100%;
+	background: #fa0;
+	overflow: hidden;
+}
+
+.menuitem {
+	float: left;
+}
+
+.scratchicon {
+	width: 20px;
+	height: 20px;
+	padding: 5px;
+	display: inline;
+	margin: 0px;
+}
+
+.scratchicon:hover {
+	background: #ffe0c0;
+	border-radius: 5px;
+}
+
+.scratchwidthcontainer {
+	width: 480px;
+}
+
+
+#scratchurl {
+	width: 480px;
+	border: none;
+	font-size: 24px;
+	color: #808080;
+}
+
 #window {
 	border: 1px solid #808080;
+	width: 480px;
+	height: 360px;
 }
