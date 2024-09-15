@@ -8,6 +8,8 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
 	font-weight: normal;
+	margin-top: 0;
+	margin-bottom: 0;
 }
 
 input[type="file"] {
@@ -26,21 +28,27 @@ p {
 .customfileinput {
 	border: 1px solid black;
 	display: inline-block;
-	padding: 10px;
-	cursor: pointer;
-}
-
-.menu {
-	list-style-type: none;
-	margin: 0px;
 	padding: 5px;
-	width: 100%;
+	cursor: pointer;
+	border-radius: 5px;
 	background: #fa0;
-	overflow: hidden;
 }
 
-.menuitem {
-	float: left;
+.customfileinput:hover {
+	background: #fc5;
+}
+
+.dialogtop {
+	width: 100%;
+	
+	background: #fa0;
+	padding: 10px;
+	margin: 0px;
+	box-sizing: border-box;
+}
+
+.dialogp {
+	margin-left: 10px;
 }
 
 .scratchicon {
@@ -60,12 +68,46 @@ p {
 	width: 480px;
 }
 
+#closesettingsicon {
+	width: 10px;
+	height: 10px;
+	padding: 10px;
+	border-radius: 15px;
+	background: #d87800;
+	float: right;
+}
+
+#closesettingsicon:hover {
+	background: #ad6000;
+}
 
 #scratchurl {
 	width: 480px;
 	border: none;
 	font-size: 24px;
 	color: #808080;
+}
+
+#settingsdialog {
+	width: 500px;
+	border: 1px solid black;
+	border-radius: 10px;
+	padding: 0px;
+}
+
+#settingsicon {
+	position: fixed;
+	top: calc(100% - 90px);
+	left: calc(100% - 90px);
+	width: 35px;
+	height: 35px;
+	padding: 12.5px;
+	background: #dae0e8;
+	border-radius: 30px;
+}
+
+#settingsicon:hover {
+	background: #c2cbd8;
 }
 
 #window {

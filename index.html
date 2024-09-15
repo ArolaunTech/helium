@@ -10,17 +10,28 @@
 		<link rel="stylesheet" type="text/css" href="css/main.css"/>
 	</head>
 	<body>
-		<ul class="menu">
-			<li class="menuitem">Settings</li>
-		</ul>
 		<div class="centered">
 			<div class="scratchwidthcontainer">
 				<h1>Helium</h1>
 			</div>
 		</div>
+
 		<div class="centered">
 			<div class="scratchwidthcontainer">
-				<input type="image" src="images/flag.svg" class="scratchicon"/><input type="image" src="images/pause.svg" class="scratchicon"/><input type="image" src="images/fastforward.svg" class="scratchicon"/><input type="image" src="images/stopsign.svg" class="scratchicon"/>
+				<p>Helium compiles Scratch. Try it out by typing in a URL or uploading a scratchblocks file below.</p>
+			</div>
+		</div>
+
+		<div class="centered">
+			<label class="customfileinput">
+				<input type="file" accept=".sb,.sb2,.sb3" id="scratchfileinput"/>
+				Upload .sb3 file
+			</label>
+		</div>
+
+		<div class="centered">
+			<div class="scratchwidthcontainer">
+				<input type="image" src="images/flag.svg" class="scratchicon" id="scratchflag" draggable="false"/><input type="image" src="images/pause.svg" class="scratchicon" id="scratchpause" draggable="false"/><input type="image" src="images/fastforward.svg" class="scratchicon" id="scratchskip" draggable="false"/><input type="image" src="images/stopsign.svg" class="scratchicon" id="scratchstop" draggable="false"/>
 			</div>
 		</div>
 		<div class="centered">
@@ -30,13 +41,20 @@
 		<div class="centered">
 			<input type="text" value="https://scratch.mit.edu/projects/" id="scratchurl"/>
 		</div>
-		<div class="centered">
-			<div class="scratchwidthcontainer">
-				<image src="images/settings.svg" width="30px" height="30px"/>
+
+		<input type="image" src="images/settings.svg" id="settingsicon" draggable="false"/>
+
+		<dialog id="settingsdialog">
+			<div class="dialogtop">
+				<h2 style="display: inline;">Settings</h2>
+				<input type="image" src="images/cross.svg" id="closesettingsicon" draggable="false"/>
 			</div>
-		</div>
+			<p class="dialogp">#1 is the best one</p>
+			<p class="dialogp">#2 is super bad</p>
+		</dialog>
 		
 		<script type="text/javascript" src="js/zip-js/zip-full.min.js"></script>
+		<script type="text/javascript" src="js/wasm-encoder.js"></script>
 		<script type="text/javascript" src="js/downloader.js"></script>
 		<script type="text/javascript" src="js/input.js"></script>
 	</body>
