@@ -1,14 +1,16 @@
-//Log
-function logBytesHex(arr) {
-	let str = "";
-	for (let i = 0; i < arr.length; i++) {
-		if (arr[i] < 16) {
-			str += "0" + arr[i].toString(16) + " ";
-		} else {
-			str += arr[i].toString(16) + " ";
-		}
-	}
-	console.log(str);
+//Download bytes as file using Blob
+function saveBytes(bytes, name, fileType) {
+	let blob = new Blob([bytes], {type: fileType});
+	let link = document.createElement("a");
+	link.href = window.URL.createObjectURL(blob);
+	link.download = name;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+}
+
+function saveWasm(bytes, name) {
+	saveBytes(bytes, name + ".wasm", "binary/wasm");
 }
 
 //Convert types
@@ -42,7 +44,7 @@ function nameToBytes(v) {
 }
 
 //Compile
-function constructWasm() {
+function constructWasm(ir) {
 	let bytes = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]); //Magic + version
 	return bytes;
 }

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="395mm"
+   height="50.000004mm"
+   viewBox="0 0 395 50.000004"
+   version="1.1"
+   id="svg1"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <g
+     id="layer1">
+    <rect
+       style="fill:#eab23f;fill-opacity:1;stroke:#e19a03;stroke-width:3.37807;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       id="rect1"
+       width="391.62192"
+       height="46.621933"
+       x="1.6890351"
+       y="1.6890351"
+       ry="6.9932885" />
+    <g
+       id="g1"
+       transform="translate(-6.427,-0.808811)">
+      <path
+         style="fill:none;fill-opacity:1;stroke:#fcfcfc;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="m 28.013358,11.144765 v 22.5"
+         id="path1" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#fcfcfc;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="M 39.263357,40.472857 H 16.763359"
+         id="path1-3" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#fcfcfc;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="M 39.263357,40.472857 39.263,36.239524"
+         id="path1-3-0" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#fcfcfc;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="m 16.763,36.239524 3.59e-4,4.233333"
+         id="path1-3-0-9" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#fcfcfc;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="M 28.013358,11.144765 19.017525,21.473932"
+         id="path1-1" />
+      <path
+         style="fill:none;fill-opacity:1;stroke:#fcfcfc;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+         d="m 28.013358,11.144765 8.995833,10.329167"
+         id="path1-1-5" />
+    </g>
+    <text
+       xml:space="preserve"
+       style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-size:25.7467px;line-height:25.2633px;font-family:Lexend;-inkscape-font-specification:'Lexend Semi-Bold';letter-spacing:0.241376px;word-spacing:0px;fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:7.29828;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none;stroke-opacity:1"
+       x="47.657051"
+       y="32.636616"
+       id="text1"><tspan
+         id="tspan1"
+         style="font-style:normal;font-variant:normal;font-weight:600;font-stretch:normal;font-family:Lexend;-inkscape-font-specification:'Lexend Semi-Bold';fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:7.29828"
+         x="47.657051"
+         y="32.636616">Load from your computer</tspan></text>
+  </g>
+</svg>

@@ -10,6 +10,8 @@ const settings = document.getElementById("settingsicon");
 const settingsDialog = document.getElementById("settingsdialog");
 const closeSettings = document.getElementById("closesettingsicon");
 
+const uploadSB = document.getElementById("scratchfileinput");
+
 //Functions
 function updatePauseButton() {
 	if (paused) {
@@ -32,7 +34,17 @@ function closeSettingsDialog() {
 	settingsDialog.close();
 }
 
+function uploadFile() {
+	const file = uploadSB.files[0];
+	file.arrayBuffer().then(v=>{
+		bytes = new Uint8Array(v);
+		loadFromSB(bytes).then(o=>{console.log(ScratchtoIR(o));});
+	});
+}
+
 //Events
 pause.addEventListener("click", togglePauseButton);
 settings.addEventListener("click", openSettingsDialog);
 closeSettings.addEventListener("click", closeSettingsDialog);
+
+uploadSB.addEventListener("change", uploadFile);

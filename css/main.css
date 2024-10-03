@@ -26,21 +26,12 @@ p {
 }
 
 .customfileinput {
-	border: 1px solid black;
 	display: inline-block;
-	padding: 5px;
 	cursor: pointer;
-	border-radius: 5px;
-	background: #fa0;
-}
-
-.customfileinput:hover {
-	background: #fc5;
 }
 
 .dialogtop {
 	width: 100%;
-	
 	background: #fa0;
 	padding: 10px;
 	margin: 0px;

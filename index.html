@@ -25,7 +25,9 @@
 		<div class="centered">
 			<label class="customfileinput">
 				<input type="file" accept=".sb,.sb2,.sb3" id="scratchfileinput"/>
-				Upload .sb3 file
+				<image src="images/load.svg" height="30px"
+				onmouseover="this.src='images/loadhover.svg'" 
+				onmouseout="this.src='images/load.svg'"/>
 			</label>
 		</div>
 
@@ -52,9 +54,13 @@
 			<p class="dialogp">#1 is the best one</p>
 			<p class="dialogp">#2 is super bad</p>
 		</dialog>
-		
+
 		<script type="text/javascript" src="js/zip-js/zip-full.min.js"></script>
-		<script type="text/javascript" src="js/wasm-encoder.js"></script>
+		<script type="text/javascript" src="js/sb1/bundle.js"></script>
+		<script type="text/javascript" src="debug/debug.js"></script>
+		<script type="text/javascript" src="js/compiler/encoders/wasm-encoder.js"></script>
+		<script type="text/javascript" src="js/compiler/encoders/js-encoder.js"></script>
+		<script type="text/javascript" src="js/compiler/irgen.js"></script>
 		<script type="text/javascript" src="js/downloader.js"></script>
 		<script type="text/javascript" src="js/input.js"></script>
 	</body>

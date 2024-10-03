@@ -1,3 +1,6 @@
 .DS_Store
 js/zip-js
 designs
+debug/wabt/
+scratch-sb1-converter/
+tests/json/
