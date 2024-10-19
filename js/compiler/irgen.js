@@ -1,4 +1,17 @@
 //Convert JS to an intermediate representation.
+function isBlockActivatableHat(opcode) {
+	return (opcode.slice(6,10) === 'when') ||
+		(opcode.slice(0,4) === 'when') || 
+		(opcode === 'control_start_as_clone') || 
+		(opcode === 'procDef') ||
+		(opcode === 'procedures_definition');
+}
+
+function doesScriptDoAnything(script) {
+	if (script.length === 1) {return false;}
+	return isBlockActivatableHat(script[0][0]);
+}
+
 function getScratch2ScriptBroadcasts(obj) {
 	let broadcasts = new Set();
 	for (let i = 0; i < obj.length; i++) {
@@ -40,7 +53,7 @@ function Scratch2toIR(obj) {
 					id: varidx,
 					name: child.variables[j].name,
 					value: child.variables[j].value,
-					owner: child.objName
+					owner: "n" + child.objName
 				});
 				varidx++;
 			}
@@ -72,7 +85,7 @@ function Scratch2toIR(obj) {
 					id: listidx,
 					name: child.lists[j].listName,
 					value: child.lists[j].contents,
-					owner: child.objName
+					owner: "n" + child.objName
 				});
 				listidx++;
 			}
@@ -102,7 +115,7 @@ function Scratch2toIR(obj) {
 				continue; 
 			}
 			for (let j = 0; j < child.sounds.length; j++) {
-				sounds.push({owner: child.objName, obj:{
+				sounds.push({owner: "n" + child.objName, obj:{
 					assetId: child.sounds[j].md5.slice(0, child.sounds[j].md5.lastIndexOf(".")),
 					data: child.sounds[j].data,
 					dataFormat: child.sounds[j].md5.slice(child.sounds[j].md5.lastIndexOf(".") + 1),
@@ -163,7 +176,7 @@ function Scratch2toIR(obj) {
 				draggable: child.isDraggable,
 				isStage: false,
 				layerOrder: child.indexInLibrary,
-				name: child.objName,
+				name: "n" + child.objName,
 				rotationStyle: child.rotationStyle,
 				size: 100 * child.scale,
 				visible: child.visible,
@@ -199,6 +212,9 @@ function Scratch2toIR(obj) {
 	let broadcasts = new Set();
 	if (typeof obj.scripts !== 'undefined') {
 		for (let i = 0; i < obj.scripts.length; i++) {
+			if (!doesScriptDoAnything(obj.scripts[i][2])) {
+				continue;
+			}
 			scripts.push({
 				owner: "Stage",
 				script: obj.scripts[i][2]
@@ -213,8 +229,11 @@ function Scratch2toIR(obj) {
 				continue;
 			}
 			for (let j = 0; j < child.scripts.length; j++) {
+				if (!doesScriptDoAnything(child.scripts[j][2])) {
+					continue;
+				}
 				scripts.push({
-					owner: child.objName, 
+					owner: "n" + child.objName, 
 					script: child.scripts[j][2]
 				});
 				broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(child.scripts[j][2]));
@@ -376,6 +395,9 @@ function Scratch2toIR(obj) {
 						console.error("Unrecognized monitor type: " + child.cmd);
 				}
 				newMonitor.spriteName = child.target;
+				if (child.target !== "Stage") {
+					newMonitor.spriteName = "n" + child.target;
+				}
 				newMonitor.mode = ["default", "large", "slider"][child.mode-1];
 				newMonitor.x = child.x;
 				newMonitor.y = child.y;
@@ -548,9 +570,13 @@ function createScratch3Scripts(blocks) {
 	for (let i = 0; i < blocks.length; i++) {
 		let block = blocks[i];
 		if (block.topLevel) {
+			let script = createScratch3Script(block, blocks, blockmap);
+			if (!doesScriptDoAnything(script)) {
+				continue;
+			}
 			scripts.push({
 				owner: block.owner,
-				script: createScratch3Script(block, blocks, blockmap)
+				script: script
 			})
 		}
 	}
@@ -572,6 +598,9 @@ function Scratch3toIR(obj) {
 		let target = obj.targets[i];
 		let costumes = [];
 		//console.log(target);
+		if (!target.isStage) {
+			target.name = "n" + target.name;
+		}
 
 		sprites.push({
 			isStage: target.isStage,

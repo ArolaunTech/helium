@@ -11,54 +11,41 @@ function logBytesHex(arr) {
 	console.log(str);
 }
 
+//Download bytes as file using Blob
+function saveBytes(bytes, name, fileType) {
+	let blob = new Blob([bytes], {type: fileType});
+	let link = document.createElement("a");
+	link.href = window.URL.createObjectURL(blob);
+	link.download = name;
+	document.body.appendChild(link);
+	link.click();
+	document.body.removeChild(link);
+}
+
+function saveWasm(bytes, name) {
+	saveBytes(bytes, name + ".wasm", "binary/wasm");
+}
+
 //Tests
 function runTests() {
-	loadScratchProject(142).then(
-		(v)=>{
-			console.log(142);
-			console.log(ScratchtoIR(v));
-		}
-	);
-	loadScratchProject(10010).then(
-		(v)=>{
-			console.log(10010);
-			console.log(ScratchtoIR(v));
-		}
-	);
-	loadScratchProject(20011112).then(
-		(v)=>{
-			console.log(20011112);
-			console.log(ScratchtoIR(v));
-		}
-	);
-	loadScratchProject(275747170).then(
-		(v)=>{
-			console.log(275747170);
-			console.log(ScratchtoIR(v));
-		}
-	);
-	loadScratchProject(46871716).then(
-		(v)=>{
-			console.log(46871716);
-			console.log(ScratchtoIR(v));
-		}
-	);
-	loadScratchProject(1046554143).then(
-		(v)=>{
-			console.log(1046554143);
-			console.log(ScratchtoIR(v));
-		}
-	);
-	loadScratchProject(417928392).then(
-		(v)=> {
-			console.log(417928392);
-			console.log(ScratchtoIR(v));
-		}
-	);
-	loadScratchProject(41299510).then(
-		(v)=> {
-			console.log(41299510);
-			console.log(ScratchtoIR(v));
-		}
-	);
+	let projects = [
+		142,
+		10010,
+		20011112,
+		41299510,
+		46871716,
+		275747170,
+		417928392,
+		1046554143
+	];
+	for (let i = 0; i < projects.length; i++) {
+		loadScratchProject(projects[i]).then(
+			(v)=>{
+				console.log(projects[i]);
+				let ir = optimizeIR(ScratchtoIR(v));
+				console.log(constructWasm1(constructWasmIR(ir)));
+				console.log(constructJS(ir));
+			}
+		)
+	}
 }

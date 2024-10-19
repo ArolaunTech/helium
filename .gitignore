@@ -2,5 +2,6 @@
 js/zip-js
 designs
 debug/wabt/
+debug/wasmgenerations/
 scratch-sb1-converter/
 tests/json/
