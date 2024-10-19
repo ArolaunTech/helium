@@ -5,7 +5,7 @@ Helium is a Scratch mod that compiles Scratch projects to make them run fast.
 
 License
 -
-Helium is licensed under the EUPL-1.2 license. See the ```LICENSE``` file for details.
+Helium is licensed under the Unlicense. See the ```LICENSE``` file for details.
 
 Parts of Helium are based off of Scratch (https://scratch.mit.edu), which is licensed under the BSD 3-Clause license:
 
