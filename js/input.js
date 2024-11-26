@@ -38,7 +38,7 @@ function uploadFile() {
 	const file = uploadSB.files[0];
 	file.arrayBuffer().then(v=>{
 		bytes = new Uint8Array(v);
-		loadFromSB(bytes).then(o=>{console.log(ScratchtoIR(o));});
+		loadFromSB(bytes).then(o=>{console.log(optimizeIR(ScratchtoIR(o)));});
 	});
 }
 

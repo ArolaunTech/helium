@@ -4,7 +4,23 @@ function isBlockActivatableHat(opcode) {
 		(opcode.slice(0,4) === 'when') || 
 		(opcode === 'control_start_as_clone') || 
 		(opcode === 'procDef') ||
-		(opcode === 'procedures_definition');
+		(opcode === 'procedures_definition') ||
+		(opcode === 'videoSensing_whenMotionGreaterThan') ||
+		(opcode === 'makeymakey_whenMakeyKeyPressed') ||
+		(opcode === 'makeymakey_whenCodePressed') ||
+		(opcode === 'microbit_whenButtonPressed') ||
+		(opcode === 'microbit_whenGesture') ||
+		(opcode === 'microbit_whenTilted') ||
+		(opcode === 'microbit_whenPinConnected') ||
+		(opcode === 'ev3_whenDistanceLessThan') ||
+		(opcode === 'ev3_whenBrightnessLessThan') ||
+		(opcode === 'boost_whenColor') ||
+		(opcode === 'boost_whenTilted') ||
+		(opcode === 'wedo2_whenDistance') ||
+		(opcode === 'wedo2_whenTilted') ||
+		(opcode === 'gdxfor_whenGesture') ||
+		(opcode === 'gdxfor_whenForcePushedOrPulled') ||
+		(opcode === 'gdxfor_whenTilted');
 }
 
 function doesScriptDoAnything(script) {
@@ -422,7 +438,7 @@ function Scratch2toIR(obj) {
 					mode: "list",
 					opcode: "data_listcontents",
 					params: {LIST: child.listName},
-					spriteName: lists[id].owner,
+					spriteName: (lists[id].owner === "Stage") ? "Stage" : ("n" + lists[id].owner),
 					x: child.x,
 					y: child.y,
 					width: child.width,
@@ -512,7 +528,11 @@ function createScratch3Block(block, blocks, blockmap) {
 	for (let i = 0; i < block.inputs.length; i++) {
 		if (block.inputs[i].isBlock) {
 			let inputBlock = blocks[blockmap.get(block.inputs[i].value)];
-			newBlock.push(createScratch3Script(inputBlock, blocks, blockmap));
+			let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
+			if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
+				inputScript = inputScript[0];
+			}
+			newBlock.push(inputScript);
 		} else {
 			newBlock.push(block.inputs[i].value);
 		}
@@ -539,7 +559,7 @@ function createScratch3Block(block, blocks, blockmap) {
 	//Menus
 	for (let i = 1; i < newBlock.length; i++) {
 		if (Array.isArray(newBlock[i])) {
-			if (newBlock[i][0][0].slice(-4) === 'menu') {
+			if (menus.includes(newBlock[i][0][0])) {
 				newBlock[i] = newBlock[i][0][1];
 			}
 		}
@@ -667,8 +687,18 @@ function Scratch3toIR(obj) {
 			}
 		}
 	}
+
+	let monitors = [];
+	for (let i = 0; i < obj.monitors.length; i++) {
+		monitors.push(obj.monitors[i]);
+		if (monitors[i].spriteName === null) {
+			monitors[i].spriteName = "Stage";
+		} else {
+			monitors[i].spriteName = "n" + monitors[i].spriteName;
+		}
+	}
 	
-	ir.monitors = obj.monitors;
+	ir.monitors = monitors;
 	ir.sprites = sprites;
 	ir.variables = variables;
 	ir.lists = lists;

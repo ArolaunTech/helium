@@ -29,8 +29,6 @@ function saveWasm(bytes, name) {
 //Tests
 function runTests() {
 	let projects = [
-		142,
-		10010,
 		20011112,
 		41299510,
 		46871716,

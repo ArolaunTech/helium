@@ -1,8 +1,5 @@
 //Function
 function addQuotes(x) {
-	if (typeof x !== 'string') {
-		return x;
-	}
 	return JSON.stringify(x);
 }
 
@@ -41,11 +38,14 @@ function blockToJS(block, owner, ir) {
 	switch(opcode) { // Lots of cases (sad)
 		case "forward:":
 		case "motion_movesteps":
+			let stepsValue = valueToJS(block[1]).value;
 			if (getValueType(block[1], owner, ir) === TYPE_STRING) {
-				let saveSteps = "let steps=castToNumber(" + valueToJS(block[1]) + ";";
+				let saveSteps = "let steps=castToNumber(" + stepsValue + ";";
 			} else {
-				let saveSteps = "let steps=" + valueToJS(block[1]) + ";";
+				let saveSteps = "let steps=" + stepsValue + ";";
 			}
+			return saveSteps + ownerID + "_x+=steps*Math.cos(" + ownerID + "_direction);" +
+							ownerID + "_y+=steps*Math.sin(" + ownerID + "_direction);";
 			break;
 		default:
 			console.warn("Unrecognized block:", block);
@@ -88,11 +88,11 @@ function constructJS(ir) {
 		for (let j = 0; j < spriteprops.length; j++) {
 			globals += "this.hs" + i + "_" + spriteprops[j] + "=" + 
 				addQuotes(ir.sprites[i][spriteprops[j]]) + ";";
-			globals += "this.hs" + i + "_scale=" +
-				ir.sprites[i].size*0.01 + ";";
-			globals += "this.hs" + i + "_direction=" + 
-				(90-ir.sprites[i].direction)*Math.PI/180 + ";";
 		}
+		globals += "this.hs" + i + "_scale=" +
+				ir.sprites[i].size*0.01 + ";";
+		globals += "this.hs" + i + "_direction=" + 
+			(90-ir.sprites[i].direction)*Math.PI/180 + ";";
 	}
 	for (let i = 0; i < ir.variables.length; i++) {
 		globals += "this.hv" + i + "=" + addQuotes(ir.variables[i].value) + ";";
