@@ -39,6 +39,33 @@ function getScratch2ScriptBroadcasts(obj) {
 	return broadcasts;
 }
 
+function getScratch3Opcode(opcode) {
+	if (!scratch2OpcodeMap.hasOwnProperty(opcode)) {
+		return opcode;
+	}
+	return scratch2OpcodeMap[opcode].opcode;
+}
+
+function setScratch3Opcode(block) {
+	let newBlock = [getScratch3Opcode(block[0])];
+	for (let i = 1; i < block.length; i++) {
+		if (Array.isArray(block[i])) {
+			newBlock.push(setScratch3Opcode(block[i]));
+		} else {
+			newBlock.push(block[i]);
+		}
+	}
+	return newBlock;
+}
+
+function setScratch3OpcodeScript(script) {
+	let newScript = [];
+	for (let i = 0; i < script.length; i++) {
+		newScript.push(setScratch3Opcode(script[i]));
+	}
+	return newScript;
+}
+
 function Scratch2toIR(obj) {
 	obj.objName = "Stage";
 	let hasChildren = (typeof obj.children !== 'undefined');
@@ -233,7 +260,7 @@ function Scratch2toIR(obj) {
 			}
 			scripts.push({
 				owner: "Stage",
-				script: obj.scripts[i][2]
+				script: setScratch3OpcodeScript(obj.scripts[i][2])
 			});
 			broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(obj.scripts[i][2]));
 		}
@@ -250,7 +277,7 @@ function Scratch2toIR(obj) {
 				}
 				scripts.push({
 					owner: "n" + child.objName, 
-					script: child.scripts[j][2]
+					script: setScratch3OpcodeScript(child.scripts[j][2])
 				});
 				broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(child.scripts[j][2]));
 			}
@@ -522,21 +549,109 @@ function cleanScratch3Block(obj, owner, id) {
 function createScratch3Block(block, blocks, blockmap) {
 	//console.log(block);
 	let newBlock = [block.opcode];
-	for (let i = 0; i < block.fields.length; i++) {
-		newBlock.push(block.fields[i].value);
-	}
+
+	block.inputs.sort((a, b) => { //This sort makes the order independent of the file
+		if (a.id < b.id) {
+			return -1;
+		}
+		if (a.id > b.id) {
+			return 1;
+		}
+		return 0;
+	});
+	block.fields.sort((a, b) => {
+		if (a.id < b.id) {
+			return -1;
+		}
+		if (a.id > b.id) {
+			return 1;
+		}
+		return 0;
+	});
+
+	let inputsUsed = [];
+	let fieldsUsed = [];
 	for (let i = 0; i < block.inputs.length; i++) {
+		inputsUsed.push(false);
+	}
+	for (let i = 0; i < block.fields.length; i++) {
+		fieldsUsed.push(false);
+	}
+	if (scratch3OpcodeMap.hasOwnProperty(block.opcode)) {
+		//console.log(block.opcode, true);
+		let blockInfo = scratch3OpcodeMap[block.opcode];
+		let argMap = blockInfo.argMap;
+		for (let i = 0; i < argMap.length; i++) {
+			let arg = argMap[i];
+			if (arg.type === 'input') {
+				let k = -1;
+				for (let j = 0; j < block.inputs.length; j++) {
+					if (block.inputs[j].id === arg.inputName) {
+						k = j;
+						break;
+					}
+				}
+				if (k === -1) {
+					newBlock.push(arg.defaultValue);
+				} else {
+					inputsUsed[k] = true;
+					if (block.inputs[k].isBlock) {
+						let inputBlock = blocks[blockmap.get(block.inputs[k].value)];
+						let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
+						if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
+							inputScript = inputScript[0];
+						}
+						newBlock.push(inputScript);
+					} else {
+						newBlock.push(block.inputs[k].value);
+					}
+				}
+			} else {
+				//console.log(block.fields);
+				let k = -1;
+				for (let j = 0; j < block.fields.length; j++) {
+					if (block.fields[j].id === arg.fieldName) {
+						k = j;
+						break;
+					}
+				}
+				if (k === -1) {
+					newBlock.push(arg.defaultValue);
+				} else {
+					fieldsUsed[k] = true;
+					newBlock.push(block.fields[k].value);
+				}
+			}
+		}
+	}
+	//console.log(block.opcode, false);
+	for (let i = 0; i < block.fields.length; i++) {
+		if (!fieldsUsed[i]) {
+			newBlock.push(block.fields[i].value);
+		}
+	}	
+	for (let i = 0; i < block.inputs.length; i++) {
+		if (inputsUsed[i]) {
+			continue;
+		}
 		if (block.inputs[i].isBlock) {
 			let inputBlock = blocks[blockmap.get(block.inputs[i].value)];
 			let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
 			if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
 				inputScript = inputScript[0];
-			}
+			}// else {
+			//	console.log(JSON.stringify(block.inputs[i]));
+			//	console.log(JSON.stringify(inputBlock));
+			//	console.log(JSON.stringify(inputScript));
+			//	console.log(Array.isArray(inputScript[0]));
+			//	console.log(reporters.includes(inputScript[0][0]));
+			//}
 			newBlock.push(inputScript);
 		} else {
 			newBlock.push(block.inputs[i].value);
 		}
 	}
+	
 
 	//Procedures
 	if ((block.opcode === "procedures_call") || (block.opcode === "procedures_prototype")) {
@@ -604,7 +719,7 @@ function createScratch3Scripts(blocks) {
 }
 
 function Scratch3toIR(obj) {
-	//console.log(obj);
+	//console.log(JSON.stringify(obj));
 	let ir = {};
 
 	let sprites = [];
@@ -707,6 +822,7 @@ function Scratch3toIR(obj) {
 	ir.blocks = blocks;
 	ir.scripts = createScratch3Scripts(blocks);
 	ir.v3info = obj.meta;
+	console.log(JSON.stringify(ir.blocks));
 	return ir;
 }
 

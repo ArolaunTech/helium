@@ -65,7 +65,7 @@ const reporters = [
 	"lineCountOfList:", 
 	"COUNT", 
 	"sensing_answer", 
-	"sensing_usename", 
+	"sensing_username", 
 	"operator_join", 
 	"operator_letter_of", 
 	"translate_getTranslate", 

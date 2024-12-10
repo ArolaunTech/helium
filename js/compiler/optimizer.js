@@ -21,11 +21,6 @@ function findVar(name, owner, vars) {
 function isLoop(block) {
 	let opcode = block[0];
 	switch (opcode) {
-		case "doRepeat":
-		case "doForever":
-		case "doUntil":
-		case "doForLoop":
-		case "doWhile":
 		case "control_forever":
 		case "control_repeat_until":
 		case "control_for_each":
@@ -41,18 +36,6 @@ function hasWait(block) {
 	}
 	let opcode = block[0];
 	switch (opcode) {
-		case "glideSecs:toX:y:elapsed:from:":
-		case "doBroadcastAndWait":
-		case "say:duration:elapsed:from:":
-		case "think:duration:elapsed:from:":
-		case "startSceneAndWait":
-		case "wait:elapsed:from:":
-		case "doWaitUntil":
-		case "doPlaySoundAndWait":
-		case "playDrum":
-		case "rest:elapsed:from:":
-		case "doAsk":
-		case "drum:duration:elapsed:from:":
 		case "motion_glideto":
 		case "motion_glidesecstoxy":
 		case "looks_sayforsecs":
@@ -149,36 +132,10 @@ function reporterStackType(ir, owner, fullIR) {
 		case "gdxfor_getSpinSpeed":
 		case "gdxfor_getAcceleration":
 		case "control_get_counter":
-		case "xpos":
-		case "ypos":
-		case "heading":
-		case "costumeIndex":
-		case "backgroundIndex":
-		case "scale":
-		case "volume":
-		case "tempo":
-		case "distanceTo:":
-		case "mouseX":
-		case "mouseY":
-		case "soundLevel":
 		case "senseVideoMotion":
-		case "timer":
-		case "timeAndDate":
-		case "timestamp":
-		case "+":
-		case "-":
-		case "*":
-		case "/":
-		case "randomFrom:to:":
-		case "stringLength:":
-		case "%":
-		case "rounded":
-		case "computeFunction:of:":
-		case "lineCountOfList:":
-		case "COUNT":
 			return TYPE_NUMBER;
 		case "sensing_answer":
-		case "sensing_usename":
+		case "sensing_username":
 		case "operator_join":
 		case "operator_letter_of":
 		case "translate_getTranslate":
@@ -188,16 +145,6 @@ function reporterStackType(ir, owner, fullIR) {
 		case "sensing_userid":
 		case "coreExample_exampleOpcode":
 		case "data_listcontents":
-		case "sceneName":
-		case "answer":
-		case "getUserName":
-		case "concatenate:with:":
-		case "letter:of:":
-		case "contentsOfList:":
-		case "getParam":
-		case "xScroll":
-		case "yScroll":
-		case "getUserId":
 		case "argument_reporter_string_number":
 			return TYPE_STRING; //Unknown type
 		case "sensing_touchingobject":
@@ -222,19 +169,6 @@ function reporterStackType(ir, owner, fullIR) {
 		case "gdxfor_isTilted":
 		case "gdxfor_isFreeFalling":
 		case "sensing_loud":
-		case "touching:":
-		case "touchingColor:":
-		case "color:sees:":
-		case "keyPressed:":
-		case "mousePressed":
-		case "<":
-		case "=":
-		case ">":
-		case "&":
-		case "|":
-		case "not":
-		case "list:contains:":
-		case "isLoud":
 			return TYPE_BOOLEAN;
 		case "looks_costumenumbername":
 		case "looks_backdropnumbername":
@@ -244,7 +178,6 @@ function reporterStackType(ir, owner, fullIR) {
 				return TYPE_STRING;
 			}
 		case "sensing_of":
-		case "getAttribute:of:":
 			switch (ir[1]) {
 				case "backdrop #":
 				case "x position":
@@ -266,12 +199,10 @@ function reporterStackType(ir, owner, fullIR) {
 					return fullIR.variables[readVar].type;
 			}
 		case "data_variable":
-		case "readVariable":
 			let variableName = ir[1];
 			return fullIR.variables[findVar(variableName, owner, fullIR.variables)].type;
 		case "data_itemoflist":
-		case "getLine:ofList:": //IDK for this one
-			let listName = (opcode === "getLine:ofList:") ? ir[2] : ir[1];
+			let listName = ir[2];
 			return fullIR.lists[findVar(listName, owner, fullIR.lists)].type;
 		default:
 			console.error("Unrecognized reporter block:", ir);
@@ -298,40 +229,28 @@ function constEvalReporterStack(ir) {
 	let opcode = newIR[0];
 	switch (opcode) {
 		case "operator_add":
-		case "+":
 			return castToNumber(newIR[1]) + castToNumber(newIR[2]);
 		case "operator_subtract":
-		case "-":
 			return castToNumber(newIR[1]) - castToNumber(newIR[2]);
 		case "operator_multiply":
-		case "*":
 			return castToNumber(newIR[1]) * castToNumber(newIR[2]);
 		case "operator_divide":
-		case "/":
 			return castToNumber(newIR[1]) / castToNumber(newIR[2]);
 		case "operator_gt":
-		case ">":
 			return castCompare(newIR[1], newIR[2]) > 0;
 		case "operator_lt":
-		case "<":
 			return castCompare(newIR[1], newIR[2]) < 0;
 		case "operator_equals":
-		case "=":
 			return castCompare(newIR[1], newIR[2]) === 0;
 		case "operator_and":
-		case "&":
 			return castToBoolean(newIR[1]) && castToBoolean(newIR[2]);
 		case "operator_or":
-		case "|":
 			return castToBoolean(newIR[1]) || castToBoolean(newIR[2]);
 		case "operator_not":
-		case "not":
 			return !castToBoolean(newIR[1]);
 		case "operator_join":
-		case "concatenate:with:":
 			return castToString(newIR[1]) + castToString(newIR[2]);
 		case "operator_letter_of":
-		case "letter:of:":
 			const index = newIR[1];
 			const str = newIR[2];
 			if (index < 1 || index > str.length) {
@@ -339,7 +258,6 @@ function constEvalReporterStack(ir) {
 			}
 			return str.charAt(index - 1);
 		case "operator_length":
-		case "stringLength:":
 			return castToString(newIR[1]).length;
 		case "operator_contains":
 			return castToString(newIR[1])
@@ -349,7 +267,6 @@ function constEvalReporterStack(ir) {
 					.toLowerCase()
 				);
 		case "operator_mod":
-		case "%":
 			const mn = castToNumber(newIR[1]);
 			const modulus = castToNumber(newIR[2]);
 			let result = mn % modulus;
@@ -358,10 +275,8 @@ function constEvalReporterStack(ir) {
 			}
 			return result;
 		case "operator_round":
-		case "rounded":
 			return Math.round(castToNumber(newIR[1]));
 		case "operator_mathop":
-		case "computeFunction:of:":
 			const mathop = castToString(newIR[1]).toLowerCase();
 			let n = castToNumber(newIR[2]);
 			switch (operator) {
@@ -423,7 +338,154 @@ function constEvalScript(ir) {
 }
 
 function simplifyReporterStack(ir, scripts, vars, owner) {
-	return ir;
+	if (!Array.isArray(ir)) {
+		return ir;
+	}
+	let opcode = ir[0];
+	let block = [opcode];
+	for (let i = 1; i < ir.length; i++) {
+		let simplifiedInput = simplifyReporterStack(ir[i], scripts, vars, owner);
+		block.push(simplifiedInput);
+
+		//if (!Array.isArray(ir[i])) {
+		//	continue;
+		//}
+		//console.log(ir[i], simplifiedInput);
+	}
+	//console.log((opcode==="operator_mathop")?"hi":0,ir, block);
+	switch (opcode) {
+		case "operator_mathop": {
+			switch (block[1]) {
+				case "cos":
+				case "sin":
+					return simplifyReporterStack([
+						"operator_multiply",
+						1e-10,
+						[
+							"operator_round",
+							[
+								"operator_multiply",
+								1e10,
+								[
+									"helium_"+block[1], 
+									["operator_multiply", block[2], Math.PI/180]
+								]
+							]
+						]
+					], scripts, vars, owner);
+				case "asin":
+				case "acos":
+				case "atan":
+					//console.log(block, block[1], block[2]);
+					return simplifyReporterStack([
+						"operator_multiply",
+						180/Math.PI,
+						["helium_"+block[1],block[2]]
+					], scripts, vars, owner);
+				default:
+					return ["helium_"+block[1]].concat(block.slice(2));
+			}
+		}
+		case "sensing_distanceto": {
+			if (block[1] == "_mouse_") {
+				return simplifyReporterStack([
+					"operator_mathop", 
+					"sqrt",
+					[
+						"operator_add",
+						[
+							"operator_multiply",
+							[
+								"operator_subtract",
+								["sensing_mousex"],
+								["motion_xposition"]
+							],
+							[
+								"operator_subtract",
+								["sensing_mousex"],
+								["motion_xposition"]
+							]
+						],
+						[
+							"operator_multiply",
+							[
+								"operator_subtract",
+								["sensing_mousey"],
+								["motion_yposition"]
+							],
+							[
+								"operator_subtract",
+								["sensing_mousey"],
+								["motion_yposition"]
+							]
+						]
+					]
+				], scripts, vars, owner);
+			} else {
+				return simplifyReporterStack([
+					"operator_mathop", 
+					"sqrt",
+					[
+						"operator_add",
+						[
+							"operator_multiply",
+							[
+								"operator_subtract",
+								["sensing_of", "x position", block[1]],
+								["motion_xposition"]
+							],
+							[
+								"operator_subtract",
+								["sensing_of", "x position", block[1]],
+								["motion_xposition"]
+							]
+						],
+						[
+							"operator_multiply",
+							[
+								"operator_subtract",
+								["sensing_of", "y position", block[1]],
+								["motion_yposition"]
+							],
+							[
+								"operator_subtract",
+								["sensing_of", "y position", block[1]],
+								["motion_yposition"]
+							]
+						]
+					]
+				], scripts, vars, owner);
+			} 
+		}
+		case "sensing_loud": {
+			return simplifyReporterStack([
+				"operator_gt",
+				["sensing_loudness"],
+				10
+			], scripts, vars, owner);
+		}
+		case "motion_direction": {
+			return simplifyReporterStack([
+				"operator_subtract",
+				[
+					"operator_mod",
+					[
+						"operator_subtract", 
+						270, 
+						[
+							"operator_multiply", 
+							180/Math.PI, 
+							["helium_direction"]
+						]
+					],
+					360
+				],
+				180
+			], scripts, vars, owner);
+		}
+		default:
+			return block;
+	}
 }
 
 function simplifyBlock(ir, scripts, vars, owner) {
@@ -431,519 +493,56 @@ function simplifyBlock(ir, scripts, vars, owner) {
 	let opcode = ir[0];
 	let block = [opcode];
 	for (let i = 1; i < ir.length; i++) {
-		block.push(simplifyReporterStack(ir[i], scripts, vars, owner));
+		let simplifiedInput = simplifyReporterStack(ir[i], scripts, vars, owner);
+		block.push(simplifiedInput);
+
+		//if (!Array.isArray(ir[i])) {
+		//	continue;
+		//}
+		//console.log(ir[i], simplifiedInput);
 	}
 	switch (opcode) {
-		case "motion_movesteps":
-		case "forward:":
-			return simplifyScript([[
-				"motion_gotoxy",
-				[
-					"operator_add",
-					["motion_xposition"],
-					[
-						"operator_multiply",
-						block[1],
-						[
-							"helium_sin",
-							["motion_direction"]
-						]
-					]
-				],
-				[
-					"operator_add",
-					["motion_yposition"],
-					[
-						"operator_multiply",
-						block[1],
-						[
-							"helium_cos",
-							["motion_direction"]
-						]
-					]
-				]
-			]], scripts, vars, owner);
-		case "motion_turnleft":
-		case "turnLeft:":
-			return simplifyScript([[
-				"motion_turnright", 
-				["operator_subtract", 0, block[1]]
-			]], scripts, vars, owner);
-		case "motion_turnright":
-		case "turnRight:":
-			return simplifyScript([[
-				"motion_pointindirection", 
-				["operator_add", ["motion_direction"], block[1]]
-			]], scripts, vars, owner);
-		case "motion_goto":
-		case "gotoSpriteOrMouse:":
-			if (block[1] === "_mouse_") {
-				//Goto mouse
-				return simplifyScript([[
-					"motion_gotoxy",
-					["sensing_mousex"],
-					["sensing_mousey"]
-				]], scripts, vars, owner);
-			} else if (block[1] === "_random_") {
-				return simplifyScript([[
-					"motion_gotoxy",
-					[
-						"operator_multiply",
-						["helium_stagewidth"],
-						["operator_random", -0.5, 0.5]
-					],
-					[
-						"operator_multiply", 
-						["helium_stageheight"], 
-						["operator_random", -0.5, 0.5]
-					],
-				]], scripts, vars, owner);
-			} else {
-				return simplifyScript([[
-					"motion_gotoxy",
-					["sensing_of", "x position", block[1]],
-					["sensing_of", "y position", block[1]]
-				]], scripts, vars, owner);
-			}
-		case "motion_gotoxy":
-		case "gotoX:y:":
+		case "motion_gotoxy": {
 			return simplifyScript([
 				["motion_setx", block[1]],
 				["motion_sety", block[2]]
 			], scripts, vars, owner);
-		case "motion_glideto":
-			if (block[2] === "_mouse_") {
-				//Goto mouse
-				return simplifyScript([[
-					"motion_glidesecstoxy",
-					block[1],
-					["sensing_mousex"],
-					["sensing_mousey"]
-				]], scripts, vars, owner);
-			} else if (block[2] === "_random_") {
-				return simplifyScript([[
-					"motion_glidesecstoxy",
-					block[1],
-					[
-						"operator_multiply",
-						["helium_stagewidth"],
-						["operator_random", -0.5, 0.5]
-					],
-					[
-						"operator_multiply", 
-						["helium_stageheight"], 
-						["operator_random", -0.5, 0.5]
-					],
-				]], scripts, vars, owner);
-			} else {
-				return simplifyScript([[
-					"motion_glidesecstoxy",
-					block[1],
-					["sensing_of", "x position", block[2]],
-					["sensing_of", "y position", block[2]]
-				]], scripts, vars, owner);
-			}
-		case "motion_glidesecstoxy":
-		case "glideSecs:toX:y:elapsed:from:": {
-			//Secs, X, Y
-			let x1 = addNewTempVar(vars, TYPE_NUMBER);
-			let y1 = addNewTempVar(vars, TYPE_NUMBER);
-			let time = addNewTempVar(vars, TYPE_NUMBER);
-			let dx = addNewTempVar(vars, TYPE_NUMBER);
-			let dy = addNewTempVar(vars, TYPE_NUMBER);
-			let travelSpeed = addNewTempVar(vars, TYPE_NUMBER);
-			let endTime = addNewTempVar(vars, TYPE_NUMBER);
-
-			scripts.push({owner: owner, script: [[
-				"motion_gotoxy", //Add goto logic here
-				[
-					"operator_add",
-					["data_variable", x1.name],
-					[
-						"operator_multiply",
-						["data_variable", dx.name],
-						[
-							"operator_multiply",
-							["operator_subtract", ["helium_time"], ["data_variable", time.name]],
-							["data_variable", travelSpeed.name]
-						]
-					]
-				],
-				[
-					"operator_add",
-					["data_variable", y1.name],
-					[
-						"operator_multiply",
-						["data_variable", dy.name],
-						[
-							"operator_multiply",
-							["operator_subtract", ["helium_time"], ["data_variable", time.name]],
-							["data_variable", travelSpeed.name]
-						]
-					]
-				]
-			]]});
+		}
+		case "motion_turnleft": {
 			return simplifyScript([
-				["data_setvariableto", x1.name, ["motion_xposition"]],
-				["data_setvariableto", y1.name, ["motion_yposition"]],
-				["data_setvariableto", time.name, ["helium_time"]],
-				["data_setvariableto", dx.name, ["operator_subtract", block[2], ["motion_xposition"]]],
-				["data_setvariableto", dy.name, ["operator_subtract", block[3], ["motion_yposition"]]],
-				["data_setvariableto", travelSpeed.name, ["operator_divide", 1, block[1]]],
-				["data_setvariableto", endTime.name, ["operator_add", block[1], ["helium_time"]]],
+				["motion_turnright", ["operator_subtract", 0, block[1]]]
+			], scripts, vars, owner);
+		}
+		case "motion_turnright": {
+			return simplifyScript([
+				["motion_pointindirection", ["operator_add", ["motion_direction"], block[1]]]
+			], scripts, vars, owner);
+		}
+		case "motion_pointindirection": {
+			return simplifyScript([
 				[
-					"control_repeat_until", 
-					["operator_gt", ["helium_time"], ["data_variable", endTime.name]],
-					{script: scripts.length-1}
+					"helium_pointindirection",
+					[
+						"operator_subtract",
+						Math.PI/2,
+						["operator_multiply", Math.PI/180, block[1]]
+					]
 				]
 			], scripts, vars, owner);
 		}
-		case "motion_pointtowards":
-		case "motion_pointTowards:":
-			if (block[1] === '_random_') {
-				return simplifyScript([[
-					"motion_pointindirection",
-					["operator_random", -180.0, 180.0]
-				]], scripts, vars, owner);
-			}
-			if (block[1] === '_mouse_') {
-				return simplifyScript([[
-					"motion_pointindirection",
-					[
-						"operator_subtract", 
-						90, 
-						[
-							"helium_scratch_atan2",
-							["operator_subtract", ["sensing_mousex"], ["motion_xposition"]],
-							["operator_subtract", ["sensing_mousey"], ["motion_yposition"]]
-						]
-					]
-				]], scripts, vars, owner);
-			}
-			return simplifyScript([[
-				"motion_pointindirection",
-				[
-					"operator_subtract", 
-					90, 
-					[
-						"helium_scratch_atan2",
-						["operator_subtract", ["sensing_of", "x position", block[1]], ["motion_xposition"]],
-						["operator_subtract", ["sensing_of", "y position", block[1]], ["motion_yposition"]]
-					]
-				]
-			]], scripts, vars, owner);
-		case "motion_changexby":
-		case "changeXposBy:":
-			return simplifyScript([[
-				"motion_setx",
-				["operator_add", ["motion_xposition"], block[1]]
-			]], scripts, vars, owner);
-		case "motion_changeyby":
-		case "changeYposBy:":
-			return simplifyScript([[
-				"motion_sety",
-				["operator_add", ["motion_yposition"], block[1]]
-			]], scripts, vars, owner);
-		case "motion_ifonedgebounce":
-		case "bounceOffEdge":
-			//Very complicated block
-			let boundsLeft = addNewTempVar(vars, TYPE_NUMBER);
-			let boundsTop = addNewTempVar(vars, TYPE_NUMBER);
-			let boundsRight = addNewTempVar(vars, TYPE_NUMBER);
-			let boundsBottom = addNewTempVar(vars, TYPE_NUMBER);
-
-			let distLeft = addNewTempVar(vars, TYPE_NUMBER);
-			let distTop = addNewTempVar(vars, TYPE_NUMBER);
-			let distRight = addNewTempVar(vars, TYPE_NUMBER);
-			let distBottom = addNewTempVar(vars, TYPE_NUMBER);
-			let minDist = addNewTempVar(vars, TYPE_NUMBER);
-
-			let radians = addNewTempVar(vars, TYPE_NUMBER);
-			let dx = addNewTempVar(vars, TYPE_NUMBER);
-			let dy = addNewTempVar(vars, TYPE_NUMBER);
-
-			scripts.push({owner: owner, script: [[
-				"data_setvariableto", 
-				dx.name, 
-				[
-					"helium_max", 
-					0.2, 
-					[
-						"operator_mathop", 
-						"abs", 
-						["data_variable", dx.name]
-					]
-				]
-			]]});
-			scripts.push({owner: owner, script: [[
-				"data_setvariableto", 
-				dy.name, 
-				[
-					"helium_max", 
-					0.2, 
-					[
-						"operator_mathop", 
-						"abs", 
-						["data_variable", dy.name]
-					]
-				]
-			]]});
-			scripts.push({owner: owner, script: [[
-				"data_setvariableto", 
-				dx.name, ["operator_subtract", 0, 
-				[
-					"helium_max", 
-					0.2, 
-					[
-						"operator_mathop", 
-						"abs", 
-						["data_variable", dx.name]
-					]
-				]]
-			]]});
-			scripts.push({owner: owner, script: [[
-				"data_setvariableto", 
-				dy.name, ["operator_subtract", 0, 
-				[
-					"helium_max", 
-					0.2, 
-					[
-						"operator_mathop", 
-						"abs", 
-						["data_variable", dy.name]
-					]
-				]]
-			]]});
-			scripts.push({owner:owner, script: [
-				[
-					"data_setvariableto", 
-					radians.name, 
-					[
-						"operator_multiply", 
-						Math.PI/180, 
-						["operator_subtract", 90, ["motion_direction"]]
-					]
-				],
-				["data_setvariableto", dx.name, ["helium_cos", ["data_variable", radians.name]]],
-				["data_setvariableto", dy.name, ["operator_subtract", 0, ["helium_sin", ["data_variable", radians.name]]]],
-				[
-					"control_if", 
-					[
-						"operator_equals", 
-						["data_variable", minDist.name],
-						["data_variable", distLeft.name]
-					],
-					{script: scripts.length-4}
-				],
-				[
-					"control_if", 
-					[
-						"operator_equals", 
-						["data_variable", minDist.name],
-						["data_variable", distTop.name]
-					],
-					{script: scripts.length-3}
-				],
-				[
-					"control_if", 
-					[
-						"operator_equals", 
-						["data_variable", minDist.name],
-						["data_variable", distRight.name]
-					],
-					{script: scripts.length-2}
-				],
-				[
-					"control_if", 
-					[
-						"operator_equals", 
-						["data_variable", minDist.name],
-						["data_variable", distBottom.name]
-					],
-					{script: scripts.length-1}
-				],
-				[
-					"motion_pointindirection", 
-					["operator_add", 90, ["helium_scratch_atan2", ["data_variable", dy.name], ["data_variable", dx.name]]]
-				],
-				[
-					"motion_changexby",
-					[
-						"operator_add",
-						[
-							"helium_max", 
-							0, 
-							[
-								"operator_subtract", 
-								["operator_multiply", -0.5, ["helium_stagewidth"]],
-								["data_variable", boundsLeft.name]
-							]
-						],
-						[
-							"helium_min", 
-							0, 
-							[
-								"operator_subtract", 
-								["operator_multiply", 0.5, ["helium_stagewidth"]],
-								["data_variable", boundsRight.name]
-							]
-						]
-					]
-				],
-				[
-					"motion_changeyby",
-					[
-						"operator_add",
-						[
-							"helium_max", 
-							0, 
-							[
-								"operator_subtract", 
-								["operator_multiply", -0.5, ["helium_stageheight"]],
-								["data_variable", boundsBottom.name]
-							]
-						],
-						[
-							"helium_min", 
-							0, 
-							[
-								"operator_subtract", 
-								["operator_multiply", 0.5, ["helium_stageheight"]],
-								["data_variable", boundsTop.name]
-							]
-						]
-					]
-				]
-			]});
-
+		case "motion_changexby": {
 			return simplifyScript([
-				[
-					"data_setvariableto",
-					boundsLeft.name,
-					["helium_boundsleft"]
-				],
-				[
-					"data_setvariableto",
-					boundsTop.name,
-					["helium_boundstop"]
-				],
-				[
-					"data_setvariableto",
-					boundsRight.name,
-					["helium_boundsright"]
-				],
-				[
-					"data_setvariableto",
-					boundsBottom.name,
-					["helium_boundsbottom"]
-				],
-				[
-					"data_setvariableto", 
-					distLeft.name, 
-					[
-						"helium_max", 
-						0, 
-						[
-							"operator_add",
-							["operator_multiply", 0.5, ["helium_stagewidth"]],
-							["data_variable", boundsLeft.name]
-						]
-					]
-				],
-				[
-					"data_setvariableto", 
-					distTop.name, 
-					[
-						"helium_max", 
-						0, 
-						[
-							"operator_subtract",
-							["operator_multiply", 0.5, ["helium_stageheight"]],
-							["data_variable", boundsTop.name]
-						]
-					]
-				],
-				[
-					"data_setvariableto", 
-					distRight.name, 
-					[
-						"helium_max", 
-						0, 
-						[
-							"operator_subtract",
-							["operator_multiply", 0.5, ["helium_stagewidth"]],
-							["data_variable", boundsRight.name]
-						]
-					]
-				],
-				[
-					"data_setvariableto", 
-					distBottom.name, 
-					[
-						"helium_max", 
-						0, 
-						[
-							"operator_add",
-							["operator_multiply", 0.5, ["helium_stageheight"]],
-							["data_variable", boundsBottom.name]
-						]
-					]
-				],
-				[
-					"data_setvariableto",
-					minDist.name,
-					["helium_min", ["helium_min", distLeft.name, distTop.name], ["helium_min", distRight.name, distBottom.name]]
-				],
-				["control_if", ["operator_equals", ["data_variable", minDist.name], 0], {script: scripts.length-1}]
+				["motion_setx", ["operator_add", ["motion_xposition"], block[1]]]
 			], scripts, vars, owner);
-		case "looks_sayforsecs":
-		case "say:duration:elapsed:from:":
+		}
+		case "motion_changeyby": {
 			return simplifyScript([
-				["looks_say", block[1]],
-				["control_wait", block[2]],
-				["looks_say", ""]
+				["motion_sety", ["operator_add", ["motion_yposition"], block[1]]]
 			], scripts, vars, owner);
-		case "looks_thinkforsecs":
-		case "think:duration:elapsed:from:":
-			return simplifyScript([
-				["looks_think", block[1]],
-				["control_wait", block[2]],
-				["looks_think", ""]
-			], scripts, vars, owner);
-		case "looks_nextcostume":
-		case "nextCostume":
-			return simplifyScript([[
-				"looks_switchcostumeto",
-				["operator_add", ["helium_costumenumber"], 1]
-			]], scripts, vars, owner);
-		case "looks_nextbackdrop":
-		case "nextScene":
-			return simplifyScript([[
-				"looks_switchbackdropto",
-				["operator_add", ["helium_backdropnumber"], 1]
-			]], scripts, vars, owner);
-		case "looks_changesizeby":
-		case "changeSizeBy:":
-			return simplifyScript([[
-				"looks_setsizeto",
-				["operator_add", ["looks_size"], block[1]]
-			]], scripts, vars, owner);
-		case "looks_cleargraphiceffects":
-		case "filterReset":
-			return simplifyScript([
-				["looks_seteffectto", "color", 0],
-				["looks_seteffectto", "fisheye", 0],
-				["looks_seteffectto", "whirl", 0],
-				["looks_seteffectto", "pixelate", 0],
-				["looks_seteffectto", "mosaic", 0],
-				["looks_seteffectto", "brightness", 0],
-				["looks_seteffectto", "ghost", 0]
-			], scripts, vars, owner);
+		}
+		default:
+			return [block];
 	}
-	if (opcode === "motion_glideto") {
-		console.log(ir);
-	}
-	return ir;
 }
 
 function simplifyScript(script, scripts, vars, owner) {
@@ -1000,7 +599,7 @@ function scriptToSSA(ir, numvars) {
 	//console.log(ir);
 	for (let i = 0; i < ir.length; i++) {
 		let block = ir[i];
-		if ((block[0] === 'procDef') || (block[0] === 'procedures_definition')) {
+		if (block[0] === 'procedures_definition') {
 			ssa.push(block);
 			continue;
 		}
@@ -1054,7 +653,35 @@ function optimisticType(obj) {
 }
 
 function optimizeIR(ir) {
+	console.log(JSON.stringify(ir.scripts)); 
+
+	//"Fix" internal scripts
+	let internalscriptmap = new Map();
+	let internalscriptset = new Set();
+	for (let i = 0; i < ir.scripts.length; i++) {
+		let script = ir.scripts[i].script;
+		for (let j = 0; j < script.length; j++) {
+			let block = script[j];
+			if (block[0].slice(0, 7) === "control") {
+				console.log(JSON.stringify(block));
+			}
+			for (let k = 1; k < block.length; k++) {
+				if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) {
+					continue;
+				}
+				if (internalscriptset.has(block[k])) {
+					ir.scripts[i].script[j][k] = {script: internalscriptmap.get(block[k])};
+				} else {
+					ir.scripts.push({owner: ir.scripts[i].owner, script: block[k]});
+					ir.scripts[i].script[j][k] = {script: ir.scripts.length - 1};
+					internalscriptset.add(block[k]);
+					internalscriptmap.set(block[k], ir.scripts.length - 1);
+				}
+			}
+		}
+	}
 	console.log(JSON.stringify(ir.scripts));
+
 	//Determine variable+list types
 	let variableListMatrix = [];
 	for (let i = 0; i < ir.variables.length + ir.lists.length; i++) {
@@ -1090,6 +717,7 @@ function optimizeIR(ir) {
 		}
 		variableListMatrix[readVar].type = TYPE_NUMBER;
 	}
+	console.log(JSON.stringify(variableListMatrix));
 	for (let i = 0; i < ir.scripts.length; i++) {
 		let script = ir.scripts[i].script;
 		let owner = ir.scripts[i].owner;
@@ -1097,41 +725,28 @@ function optimizeIR(ir) {
 			let block = script[j];
 			let opcode = block[0];
 			if (
-				(opcode !== 'setVar:to:') &&
-				(opcode !== 'changeVar:by:') &&
-				(opcode !== 'append:toList:') &&
-				(opcode !== 'insert:at:ofList:') &&
-				(opcode !== 'setLine:ofList:to:') &&
 				(opcode !== 'data_setvariableto') &&
 				(opcode !== 'data_changevariableby') &&
 				(opcode !== 'data_addtolist') &&
 				(opcode !== 'data_insertatlist') &&
 				(opcode !== 'data_replaceitemoflist')
 			) {continue;}
+			console.log(JSON.stringify(block));
 
 			//Set types
-			if ((opcode === 'setVar:to:') || (opcode === 'data_setvariableto')) {
+			if (opcode === 'data_setvariableto') {
 				let currVar = findVar(block[1], owner, ir.variables);
 				if (Array.isArray(block[2])) {
 					let reporterOpcode = block[2][0];
-					if (
-						(reporterOpcode === 'readVariable') ||
-						(reporterOpcode === 'data_variable')
-					) {
+					if (reporterOpcode === 'data_variable') {
 						let readVar = findVar(block[2][1], owner, ir.variables);
 						addChild(readVar, currVar, variableListMatrix);
 					}
-					if (
-						(reporterOpcode === 'getLine:ofList:') ||
-						(reporterOpcode === 'data_itemoflist')
-					) {
-						let readVar = findVar(block[2][1], owner, ir.lists) + ir.variables.length;
+					if (reporterOpcode === 'data_itemoflist') {
+						let readVar = findVar(block[2][2], owner, ir.lists) + ir.variables.length;
 						addChild(readVar, currVar, variableListMatrix);
 					}
-					if (
-						(reporterOpcode === 'getAttribute:of:') ||
-						(reporterOpcode === 'sensing_of')
-					) {
+					if (reporterOpcode === 'sensing_of') {
 						let reporterType = TYPE_UNKNOWN;
 						let reporterVar = false;
 						switch (block[2][1]) {
@@ -1173,47 +788,32 @@ function optimizeIR(ir) {
 					}
 					setVarType(currVar, type, variableListMatrix);
 				}
-			} else if ((opcode === 'changeVar:by:') || (opcode === 'data_changevariableby')) {
+			} else if (opcode === 'data_changevariableby') {
 				//change variable casts the variable to a number
 				setVarType(findVar(block[1], owner, ir.variables), TYPE_NUMBER, variableListMatrix);
 			} else {
 				//list operations - lists are treated as having one type (remember this works because strings are the universal type)
 				//console.log(block, owner, ir.lists);
-				let varName = block[1];
-				let valueName = block[2];
-				if (opcode === 'append:toList:') {
-					varName = block[2];
-					valueName = block[1];
-				} else if (opcode === 'insert:at:ofList:') {
+				let varName = block[2];
+				let valueName = block[1];
+				if (opcode === 'data_replaceitemoflist') {
+					valueName = block[3];
+				}
+				if (opcode === 'data_insertatlist') {
 					varName = block[3];
-					valueName = block[1];
-				} else if (opcode === 'setLine:ofList:to:') {
-					varName = block[2];
-					valueName = block[3];
-				} else if (opcode === 'data_replaceitemoflist') {
-					valueName = block[3];
 				}
 				let currVar = findVar(varName, owner, ir.lists) + ir.variables.length;
 				if (Array.isArray(valueName)) {
 					let reporterOpcode = valueName[0];
-					if (
-						(reporterOpcode === 'readVariable') ||
-						(reporterOpcode === 'data_variable')
-					) {
+					if (reporterOpcode === 'data_variable') {
 						let readVar = findVar(valueName[1], owner, ir.variables);
 						addChild(readVar, currVar, variableListMatrix);
 					}
-					if (
-						(reporterOpcode === 'getLine:ofList:') ||
-						(reporterOpcode === 'data_itemoflist')
-					) {
-						let readVar = findVar(valueName[1], owner, ir.lists) + ir.variables.length;
+					if (reporterOpcode === 'data_itemoflist') {
+						let readVar = findVar(valueName[2], owner, ir.lists) + ir.variables.length;
 						addChild(readVar, currVar, variableListMatrix);
 					}
-					if (
-						(reporterOpcode === 'getAttribute:of:') ||
-						(reporterOpcode === 'sensing_of')
-					) {
+					if (reporterOpcode === 'sensing_of') {
 						let reporterType = TYPE_UNKNOWN;
 						let reporterVar = false;
 						switch (valueName[1]) {
@@ -1266,30 +866,7 @@ function optimizeIR(ir) {
 	}
 	ir.variableListMatrix = variableListMatrix;
 
-	//"Fix" internal scripts
-	console.log(JSON.stringify(ir.scripts));
-	let internalscriptmap = new Map();
-	let internalscriptset = new Set();
-	for (let i = 0; i < ir.scripts.length; i++) {
-		let script = ir.scripts[i].script;
-		for (let j = 0; j < script.length; j++) {
-			let block = script[j];
-			for (let k = 1; k < block.length; k++) {
-				if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) {
-					continue;
-				}
-				if (internalscriptset.has(block[k])) {
-					ir.scripts[i].script[j][k] = {script: internalscriptmap.get(block[k])};
-				} else {
-					ir.scripts.push({owner: ir.scripts[i].owner, script: block[k]});
-					ir.scripts[i].script[j][k] = {script: ir.scripts.length - 1};
-					internalscriptset.add(block[k]);
-					internalscriptmap.set(block[k], ir.scripts.length - 1);
-				}
-			}
-		}
-	}
-	console.log(JSON.stringify(ir.scripts));
+	//correct up to
 
 	//Remove wait blocks
 	for (let i = 0; i < ir.scripts.length; i++) {
@@ -1303,7 +880,9 @@ function optimizeIR(ir) {
 		console.log(i, script);
 		opcodes = opcodes.concat(countOpcodesScript(script));
 	}
-	console.log([...new Set(opcodes)]);
+	opcodes = [...new Set(opcodes)];
+	console.log(JSON.stringify(opcodes), opcodes.length);
+	console.log(JSON.stringify(ir.scripts));
 
 	//SSA (not really)
 	numVars = 0;
@@ -1316,6 +895,7 @@ function optimizeIR(ir) {
 	}
 
 	//highlight start/end of basic blocks
+	console.log(JSON.stringify(ir.ssa));
 	for (let i = 0; i < ir.ssa.length; i++) {
 		let script = ir.ssa[i];
 		for (let j = 0; j < script.length; j++) {
@@ -1323,6 +903,7 @@ function optimizeIR(ir) {
 				continue;
 			}
 			if (isLoop(script[j])) {
+				console.log(script[j]);
 				let k = 0;
 				for (; k < script[j].length; k++) {
 					if (!script[j][k].val) {
