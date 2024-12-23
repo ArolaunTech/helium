@@ -47,10 +47,19 @@ function getScratch3Opcode(opcode) {
 }
 
 function setScratch3Opcode(block) {
+	//console.log(block);
+	if (block[0] === "procDef") {
+		//console.log(block, Scratch2FunctiontoScratch3(block));
+		return Scratch2FunctiontoScratch3(block);
+	}
 	let newBlock = [getScratch3Opcode(block[0])];
 	for (let i = 1; i < block.length; i++) {
 		if (Array.isArray(block[i])) {
-			newBlock.push(setScratch3Opcode(block[i]));
+			if (Array.isArray(block[i][0])) {
+				newBlock.push(setScratch3OpcodeScript(block[i]));
+			} else {
+				newBlock.push(setScratch3Opcode(block[i]));
+			}
 		} else {
 			newBlock.push(block[i]);
 		}
@@ -66,7 +75,39 @@ function setScratch3OpcodeScript(script) {
 	return newScript;
 }
 
+function Scratch2FunctiontoScratch3(block) {
+	let newBlock = ["procedures_definition"];
+	let argDefaults = block[3].filter(x => x !== undefined);
+	let argNames = block[2].filter(x => x !== undefined);
+
+	//Basically copied from scratch-vm
+	let numInputs = 0;
+	const parts = block[1].split(/(?=[^\\]%[nbs])/);
+	for (let i = 0; i < parts.length; i++) {
+		const part = parts[i].trim();
+		if (part[0] !== "%") {
+			continue;
+		}
+		const argType = part[1];
+		if (argType === "b") {
+			newBlock.push(["argument_reporter_boolean", argNames[i]]);
+		} else {
+			newBlock.push(["argument_reporter_string_number", argNames[i]]);
+		}
+	}
+
+	newBlock.push({
+		argDefaults: argDefaults,
+		argNames: argNames,
+		owner: "Stage",
+		proccode: block[1],
+		warp: block[4]
+	});
+	return newBlock;
+}
+
 function Scratch2toIR(obj) {
+	console.log(obj);
 	obj.objName = "Stage";
 	let hasChildren = (typeof obj.children !== 'undefined');
 	//console.log(obj);

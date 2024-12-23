@@ -28,7 +28,7 @@ Helium uses the ```zip.js``` (https://github.com/gildas-lormeau/zip.js) library 
 
 It also uses the ```scratch-sb1-converter``` (https://github.com/scratchfoundation/scratch-sb1-converter) library to support Scratch 1 files, which is again licensed under the BSD 3-Clause license. The library was compiled into vanilla JS using ```esbuild```.
 
-Helium uses the ```sb2_specmap.js``` from the ```scratch-vm``` (https://github.com/scratchfoundation/scratch-vm/blob/develop/src/serialization/sb2_specmap.js) to handle Scratch 2 features, which is licensed under the GNU APGL-3.0: 
+Helium uses parts of ```scratch-vm``` (https://github.com/scratchfoundation/scratch-vm) to handle Scratch 2 features, which is licensed under the GNU APGL-3.0: 
 
 ```
 GNU AFFERO GENERAL PUBLIC LICENSE
