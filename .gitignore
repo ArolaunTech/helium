@@ -1,7 +1,7 @@
 .DS_Store
 js/zip-js
 designs
-debug/wabt/
-debug/wasmgenerations/
+js/debug/wabt/
+js/debug/wasmgenerations/
 scratch-sb1-converter/
 tests/json/
