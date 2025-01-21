@@ -1267,6 +1267,15 @@ function simplifyScript(script, scripts, vars, owner) {
 function removeSpecialVarBlock(block, vars, sounds, owner) {
 	let opcode = block[0];
 
+	let newBlock = [opcode];
+	for (let i = 1; i < block.length; i++) {
+		if (Array.isArray(block[i])) {
+			newBlock.push(removeSpecialVarBlock(block[i], vars, sounds, owner)[0]);
+		} else {
+			newBlock.push(block[i]);
+		}
+	}
+
 	let timervar = vars[0];
 	if (opcode === "sensing_timer") {
 		return [[
@@ -1287,7 +1296,7 @@ function removeSpecialVarBlock(block, vars, sounds, owner) {
 	if (opcode === "sensing_askandwait") {
 		return [
 			["data_setvariableto", answered.name, false],
-			["helium_ask", block[1]],
+			["helium_ask", newBlock[1]],
 			["control_wait_until", ["data_variable", answered.name]]
 		];
 	}
@@ -1297,23 +1306,13 @@ function removeSpecialVarBlock(block, vars, sounds, owner) {
 			if (sounds[i].owner !== owner) {
 				continue;
 			}
-			if (sounds[i].obj.name !== block[1]) {
+			if (sounds[i].obj.name !== newBlock[1]) {
 				continue;
 			}
 			return [
-				["sound_play", block[1]],
+				["sound_play", newBlock[1]],
 				["control_wait", sounds[i].obj.sampleCount/sounds[i].obj.rate]
 			];
-		}
-		console.error("Failed to find sound:", block, owner);
-	}
-
-	let newBlock = [opcode];
-	for (let i = 1; i < block.length; i++) {
-		if (Array.isArray(block[i])) {
-			newBlock.push(removeSpecialVarBlock(block[i], vars, sounds, owner)[0]);
-		} else {
-			newBlock.push(block[i]);
 		}
 	}
 	return [newBlock];
@@ -1404,11 +1403,12 @@ function scriptToSSA(ir, numvars) {
 }
 
 function setVarType(varidx, type, vartypemap) {
+	//console.log(varidx, type, vartypemap);
 	if (type <= vartypemap[varidx].type) { //Don't set type if it wouldn't dp anything
 		return;
 	}
 	vartypemap[varidx].type = type;
-	for (let i = 0; i < vartypemap[varidx].children; i++) {
+	for (let i = 0; i < vartypemap[varidx].children.length; i++) {
 		setVarType(vartypemap[varidx].children[i], type, vartypemap);
 	}
 }
