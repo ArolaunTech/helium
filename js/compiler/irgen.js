@@ -613,7 +613,7 @@ function cleanScratch3Block(obj, owner, id) {
 					inputs.push({id: prop, isBlock: false, value: out.inputs[prop][1][1]});
 				}
 			} else {
-				inputs.push({id: prop, isBlock: true, value: out.inputs[prop][1]});
+				inputs.push({id: prop, isBlock: (typeof out.inputs[prop][1] === "string"), value: out.inputs[prop][1]});
 			}
 		}
 	}
@@ -699,6 +699,7 @@ function createScratch3Block(block, blocks, blockmap) {
 					inputsUsed[k] = true;
 					if (block.inputs[k].isBlock) {
 						let inputBlock = blocks[blockmap.get(block.inputs[k].value)];
+						//console.log("input", inputBlock, blocks, block, k, blockmap, block.inputs[k].value);
 						let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
 						if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
 							inputScript = inputScript[0];
@@ -786,10 +787,12 @@ function createScratch3Block(block, blocks, blockmap) {
 }
 
 function createScratch3Script(block, blocks, blockmap) {
+	//console.log(block);
 	let script = [createScratch3Block(block, blocks, blockmap)];
 	let newBlock = block;
 	while (newBlock.next) {
 		newBlock = blocks[blockmap.get(newBlock.next)];
+		//console.log(newBlock);
 		script.push(createScratch3Block(newBlock, blocks, blockmap));
 	}
 	return script;
@@ -798,6 +801,8 @@ function createScratch3Script(block, blocks, blockmap) {
 function createScratch3Scripts(blocks) {
 	//Turn blocks into scripts.
 	//Generate block idx map
+	//console.log(JSON.stringify(blocks));
+
 	let blockmap = new Map();
 	for (let i = 0; i < blocks.length; i++) {
 		blockmap.set(blocks[i].id, i);
