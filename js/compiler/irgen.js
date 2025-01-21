@@ -75,6 +75,43 @@ function setScratch3OpcodeScript(script) {
 	return newScript;
 }
 
+function setVarNameBlock(block) {
+	let opcode = block[0];
+	let newBlock = [opcode];
+	for (let i = 1; i < block.length; i++) {
+		if (Array.isArray(block[i])) {
+			if (Array.isArray(block[i][0])) {
+				newBlock.push(setVarNameScript(block[i]));
+			} else {
+				newBlock.push(setVarNameBlock(block[i]));
+			}
+		} else {
+			newBlock.push(block[i]);
+		}
+	}
+	switch (opcode) {
+		case "data_variable":
+		case "data_showvariable":
+		case "data_hidevariable":
+			return [opcode, "n"+newBlock[1]];
+		case "data_setvariableto":
+		case "data_changevariableby":
+			return [opcode, "n"+newBlock[1], newBlock[2]];
+		default:
+			return newBlock;
+	}
+}
+
+function setVarNameScript(script) {
+	let newScript = [];
+	for (let i = 0; i < script.length; i++) {
+		newScript.push(setVarNameBlock(script[i]));
+	}
+	//console.log(JSON.stringify(script));
+	//console.log(JSON.stringify(newScript));
+	return newScript;
+}
+
 function Scratch2FunctiontoScratch3(block) {
 	let newBlock = ["procedures_definition"];
 	let argDefaults = block[3].filter(x => x !== undefined);
@@ -119,7 +156,7 @@ function Scratch2toIR(obj) {
 		for (let i = 0; i < obj.variables.length; i++) {
 			variables.push({
 				id: varidx,
-				name: obj.variables[i].name,
+				name: "n"+obj.variables[i].name,
 				value: obj.variables[i].value,
 				owner: "Stage"
 			});
@@ -301,7 +338,9 @@ function Scratch2toIR(obj) {
 			}
 			scripts.push({
 				owner: "Stage",
-				script: setScratch3OpcodeScript(obj.scripts[i][2])
+				script: setVarNameScript(
+					setScratch3OpcodeScript(obj.scripts[i][2])
+				)
 			});
 			broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(obj.scripts[i][2]));
 		}
@@ -380,7 +419,7 @@ function Scratch2toIR(obj) {
 						newMonitor = {
 							id: varid, 
 							opcode: "data_variable",
-							params: {VARIABLE: child.param},
+							params: {VARIABLE: "n"+child.param},
 							value: variables[varid].value
 						};
 						break;
@@ -550,7 +589,29 @@ function cleanScratch3Block(obj, owner, id) {
 	for (let prop in out.inputs) {
 		if (out.inputs.hasOwnProperty(prop)) {
 			if (Array.isArray(out.inputs[prop][1])) {
-				inputs.push({id: prop, isBlock: false, value: out.inputs[prop][1][1]});
+				//Beware of enum blocks (12 = variable, 13 = list)
+				let enumIdx = out.inputs[prop][1][0];
+				if (enumIdx === 12) {
+					inputs.push({
+						id: prop, 
+						isBlock: false, //Not true, this is just an indicator to keep this value here
+						value: [
+							"data_variable",
+							out.inputs[prop][1][1]
+						]
+					});
+				} else if (enumIdx === 13) {
+					inputs.push({
+						id: prop, 
+						isBlock: false, 
+						value: [
+							"data_listcontents",
+							out.inputs[prop][1][1]
+						]
+					});
+				} else {
+					inputs.push({id: prop, isBlock: false, value: out.inputs[prop][1][1]});
+				}
 			} else {
 				inputs.push({id: prop, isBlock: true, value: out.inputs[prop][1]});
 			}
@@ -746,7 +807,7 @@ function createScratch3Scripts(blocks) {
 	for (let i = 0; i < blocks.length; i++) {
 		let block = blocks[i];
 		if (block.topLevel) {
-			let script = createScratch3Script(block, blocks, blockmap);
+			let script = setVarNameScript(createScratch3Script(block, blocks, blockmap));
 			if (!doesScriptDoAnything(script)) {
 				continue;
 			}
@@ -798,7 +859,7 @@ function Scratch3toIR(obj) {
 			if (target.variables.hasOwnProperty(prop)) {
 				variables.push({
 					id: prop,
-					name: target.variables[prop][0],
+					name: "n"+target.variables[prop][0],
 					value: target.variables[prop][1],
 					owner: target.name,
 					cloud: target.variables[prop][0].charCodeAt(0) === 9729
@@ -852,6 +913,9 @@ function Scratch3toIR(obj) {
 		} else {
 			monitors[i].spriteName = "n" + monitors[i].spriteName;
 		}
+		if (monitors[i].opcode === "data_variable") {
+			monitors[i].params.VARIABLE = "n"+monitors[i].params.VARIABLE;
+		}
 	}
 	
 	ir.monitors = monitors;
@@ -863,7 +927,7 @@ function Scratch3toIR(obj) {
 	ir.blocks = blocks;
 	ir.scripts = createScratch3Scripts(blocks);
 	ir.v3info = obj.meta;
-	console.log(JSON.stringify(ir.blocks));
+	//console.log(JSON.stringify(ir.blocks));
 	return ir;
 }
 

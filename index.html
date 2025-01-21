@@ -2,12 +2,17 @@
 <html>
 	<head>
 		<title>
-
+			Helium
 		</title>
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 		<link rel="stylesheet" type="text/css" href="css/main.css"/>
+
+		<link rel="icon" type="image/png" href="images/favicon/favicon-96x96.png" sizes="96x96" />
+		<link rel="icon" type="image/svg+xml" href="images/favicon/favicon.svg" />
+		<link rel="shortcut icon" href="images/favicon/favicon.ico" />
+		<link rel="manifest" href="images/favicon/site.webmanifest" />
 	</head>
 	<body>
 		<div class="centered">
@@ -25,9 +30,9 @@
 		<div class="centered">
 			<label class="customfileinput">
 				<input type="file" accept=".sb,.sb2,.sb3" id="scratchfileinput"/>
-				<image src="images/load.svg" height="30px"
-				onmouseover="this.src='images/loadhover.svg'" 
-				onmouseout="this.src='images/load.svg'"/>
+				<image src="images/load.png" height="30px"
+				onmouseover="this.src='images/loadhover.png'" 
+				onmouseout="this.src='images/load.png'"/>
 			</label>
 		</div>
 
@@ -57,6 +62,7 @@
 
 		<script type="text/javascript" src="js/zip-js/zip-full.min.js"></script>
 		<script type="text/javascript" src="js/sb1/bundle.js"></script>
+		<script type="text/javascript" src="js/utils/equals.js"></script>
 		<script type="text/javascript" src="debug/debug.js"></script>
 		<script type="text/javascript" src="js/compiler/encoders/wasm-encoder.js"></script>
 		<script type="text/javascript" src="js/compiler/encoders/js-encoder.js"></script>

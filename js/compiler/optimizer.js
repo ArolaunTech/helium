@@ -590,12 +590,6 @@ function simplifyBlock(ir, scripts, vars, owner) {
 		//console.log(ir[i], simplifiedInput);
 	}
 	switch (opcode) {
-		case "motion_gotoxy": {
-			return simplifyScript([
-				["motion_setx", block[1]],
-				["motion_sety", block[2]]
-			], scripts, vars, owner);
-		}
 		case "motion_turnleft": {
 			return simplifyScript([
 				["motion_turnright", ["operator_subtract", 0, block[1]]]
@@ -1183,6 +1177,77 @@ function simplifyBlock(ir, scripts, vars, owner) {
 				]
 			], scripts, vars, owner);
 		}
+		case "music_restForBeats": {
+			return simplifyScript([
+				[
+					"control_wait",
+					[
+						"operator_divide",
+						[
+							"operator_multiply",
+							60,
+							["helium_min", 100, ["helium_max", 0, ["helium_number", block[1]]]]
+						],
+						["music_getTempo"]
+					]
+				]
+			], scripts, vars, owner);
+		}
+		case "music_playDrumForBeats": {
+			return simplifyScript([
+				[
+					"helium_playDrum",
+					[
+						"helium_wrapClamp",
+						block[1],
+						0, 17
+					]
+				],
+				["music_restForBeats", block[2]]
+			], scripts, vars, owner);
+		}
+		case "music_playNoteForBeats": {
+			//console.log(block);
+			let durationSec = addNewTempVar(vars, TYPE_NUMBER);
+
+			scripts.push({owner: owner, script:[
+				[
+					"helium_playNote", 
+					[
+						"helium_min", 
+						130, 
+						[
+							"helium_max", 
+							0, 
+							["helium_number", block[1]]
+						]
+					],
+					["data_variable", durationSec.name]
+				],
+				["control_wait", ["data_variable", durationSec.name]]
+			]});
+
+			return simplifyScript([
+				[
+					"data_setvariableto",
+					durationSec.name,
+					[
+						"operator_divide",
+						[
+							"operator_multiply",
+							60,
+							["helium_min", 100, ["helium_max", 0, ["helium_number", block[2]]]]
+						],
+						["music_getTempo"]
+					]
+				],
+				[
+					"control_if", 
+					["operator_gt", ["data_variable", durationSec.name], 0],
+					{script: scripts.length - 1}
+				]
+			], scripts, vars, owner);
+		}
 		default:
 			return [block];
 	}
@@ -1199,29 +1264,65 @@ function simplifyScript(script, scripts, vars, owner) {
 	return script;
 }
 
-function removeTimerBlock(block, timervar) {
+function removeSpecialVarBlock(block, vars, sounds, owner) {
 	let opcode = block[0];
+
+	let timervar = vars[0];
 	if (opcode === "sensing_timer") {
-		return ["operator_subtract", ["helium_time"], ["data_variable", timervar.name]];
+		return [[
+			"operator_subtract", 
+			["helium_time"], 
+			["data_variable", timervar.name]
+		]];
 	}
 	if (opcode === "sensing_resettimer") {
-		return ["data_setvariableto", timervar.name, ["helium_time"]];
+		return [[
+			"data_setvariableto", 
+			timervar.name, 
+			["helium_time"]
+		]];
 	}
+
+	let answered = vars[1];
+	if (opcode === "sensing_askandwait") {
+		return [
+			["data_setvariableto", answered.name, false],
+			["helium_ask", block[1]],
+			["control_wait_until", ["data_variable", answered.name]]
+		];
+	}
+
+	if (opcode === "sound_playuntildone") {
+		for (let i = 0; i < sounds.length; i++) {
+			if (sounds[i].owner !== owner) {
+				continue;
+			}
+			if (sounds[i].obj.name !== block[1]) {
+				continue;
+			}
+			return [
+				["sound_play", block[1]],
+				["control_wait", sounds[i].obj.sampleCount/sounds[i].obj.rate]
+			];
+		}
+		console.error("Failed to find sound:", block, owner);
+	}
+
 	let newBlock = [opcode];
 	for (let i = 1; i < block.length; i++) {
 		if (Array.isArray(block[i])) {
-			newBlock.push(removeTimerBlock(block[i], timervar));
+			newBlock.push(removeSpecialVarBlock(block[i], vars, sounds, owner)[0]);
 		} else {
 			newBlock.push(block[i]);
 		}
 	}
-	return newBlock;
+	return [newBlock];
 }
 
-function removeTimerScript(script, timervar) {
+function removeSpecialVarScript(script, vars, sounds, owner) {
 	let newScript = [];
 	for (let i = 0; i < script.length; i++) {
-		newScript.push(removeTimerBlock(script[i], timervar));
+		newScript = newScript.concat(removeSpecialVarBlock(script[i], vars, sounds, owner));
 	}
 	return newScript;
 }
@@ -1331,9 +1432,10 @@ function optimisticType(obj) {
 }
 
 function optimizeIR(ir) {
+	console.log(structuredClone(ir));
 	for (let i = 0; i < ir.scripts.length; i++) {
 		console.log(structuredClone(ir.scripts[i].script));
-		console.log(JSON.stringify(ir.scripts[i].script));
+		//console.log(JSON.stringify(ir.scripts[i].script));
 	}
 
 	//"Fix" internal scripts
@@ -1343,9 +1445,9 @@ function optimizeIR(ir) {
 		let script = ir.scripts[i].script;
 		for (let j = 0; j < script.length; j++) {
 			let block = script[j];
-			if (block[0].slice(0, 7) === "control") {
-				console.log(JSON.stringify(block));
-			}
+			//if (block[0].slice(0, 7) === "control") {
+			//	console.log(JSON.stringify(block));
+			//}
 			for (let k = 1; k < block.length; k++) {
 				if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) {
 					continue;
@@ -1399,6 +1501,7 @@ function optimizeIR(ir) {
 		variableListMatrix[readVar].type = TYPE_NUMBER;
 	}
 	console.log(JSON.stringify(variableListMatrix));
+	console.log(JSON.stringify(ir.variables));
 	for (let i = 0; i < ir.scripts.length; i++) {
 		let script = ir.scripts[i].script;
 		let owner = ir.scripts[i].owner;
@@ -1420,6 +1523,7 @@ function optimizeIR(ir) {
 				if (Array.isArray(block[2])) {
 					let reporterOpcode = block[2][0];
 					if (reporterOpcode === 'data_variable') {
+						console.log(block[2]);
 						let readVar = findVar(block[2][1], owner, ir.variables);
 						addChild(readVar, currVar, variableListMatrix);
 					}
@@ -1549,8 +1653,9 @@ function optimizeIR(ir) {
 
 	//Remove timer blocks
 	const timervar = addNewTempVar(ir.variables, TYPE_NUMBER);
+	const answered = addNewTempVar(ir.variables, TYPE_BOOLEAN);
 	for (let i = 0; i < ir.scripts.length; i++) {
-		ir.scripts[i].script = removeTimerScript(ir.scripts[i].script, timervar);
+		ir.scripts[i].script = removeSpecialVarScript(ir.scripts[i].script, [timervar, answered], ir.sounds, ir.scripts[i].owner);
 	}
 
 	//Remove wait blocks
@@ -1563,7 +1668,7 @@ function optimizeIR(ir) {
 	let opcodes = [];
 	for (let i = 0; i < ir.scripts.length; i++) {
 		let script = ir.scripts[i].script;
-		console.log(i, script);
+		//console.log(i, script);
 		opcodes = opcodes.concat(countOpcodesScript(script));
 	}
 	opcodes = [...new Set(opcodes)];
@@ -1602,6 +1707,7 @@ function optimizeIR(ir) {
 				ir.ssa[script[j][k].val.script].push(["helium_end"]);
 				ir.ssa[script[j][k].val.script].push(["helium_start"]);
 			} else {
+				console.log(script[j]);
 				ir.ssa[i].splice(j, 0, ["helium_end"]);
 				ir.ssa[i].splice(j+2, 0, ["helium_start"]);
 				j++;
@@ -1617,15 +1723,41 @@ function optimizeIR(ir) {
 	//Remove empty blocks
 	for (let i = 0; i < ir.ssa.length; i++) {
 		for (let j = 0; j < ir.ssa[i].length-1; j++) {
-			if ((ir.ssa[i][j] === ["helium_start"]) && (ir.ssa[i][j+1] === ["helium_end"])) {
+			if (
+				nDarrayEquality(ir.ssa[i][j],["helium_start"]) && 
+				nDarrayEquality(ir.ssa[i][j+1],["helium_end"])
+			) {
 				ir.ssa[i].splice(j,2);
 				j--;
 			}
 		}
 	}
+	console.log(JSON.stringify(ir.ssa));
 
-	//ir.scripts = scripts;
-	//Delete unused variables + lists
+	//Turn variables to values
+	let valIndexes = [];
+	for (let i = 0; i < variableListMatrix.length; i++) {
+		valIndexes.push(-1);
+	}
+	console.log(valIndexes);
+	for (let i = 0; i < ir.ssa.length; i++) {
+		let script = ir.ssa[i];
+		for (let j = 0; j < script.length; j++) {
+			if (nDarrayEquality(script[j], ["helium_start"])) {
+				console.log(j, script[j]);
+
+				let insert = [];
+				for (let k = 0; k < valIndexes.length; k++) {
+					
+				}
+			}
+		}
+	}
+
+	//Optimization passes
+	for (let i = 0; i < 10; i++) {
+
+	}
 
 	return ir;
 }
