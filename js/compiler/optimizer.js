@@ -81,6 +81,17 @@ function varsUsed(block) {
 function addNewTempVar(vars, type) {
 	//Gives a new var index for temporary vars.
 	let newidx = vars.length;
+
+	//TEMPORARY SOLUTION TO GUARANTEE UNIQUE VARIABLE NAMES.
+	let varNames = new Set();
+	for (let i = 0; i < vars.length; i++) {
+		varNames.add(vars[i].name);
+	}
+
+	while (varNames.has("t" + newidx)) {
+		newidx++;
+	}
+
 	vars.push({
 		id: newidx,
 		name: "t"+newidx,
