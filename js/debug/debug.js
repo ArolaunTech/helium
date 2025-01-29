@@ -37,12 +37,27 @@ function runTests() {
 		1046554143
 	];
 	for (let i = 0; i < projects.length; i++) {
+		globalPerformanceTester.tagTime(i);
 		loadScratchProject(projects[i]).then(
 			(v)=>{
-				console.log(projects[i]);
-				let ir = optimizeIR(ScratchtoIR(v));
+				console.log(projects[i], `Load time: ${globalPerformanceTester.elapsed(i)} ms`);
+				globalPerformanceTester.tagTime(i);
+
+				let ir = ScratchtoIR(v);
+				console.log(projects[i], `IR gen time: ${globalPerformanceTester.elapsed(i)} ms`);
+				globalPerformanceTester.tagTime(i);
+
+				ir = optimizeIR(ir);
+				console.log(projects[i], `Optimize time: ${globalPerformanceTester.elapsed(i)} ms`);
+				globalPerformanceTester.tagTime(i);
+
 				console.log(constructWasm1(constructWasmIR(ir)));
+				console.log(projects[i], `WASM gen time: ${globalPerformanceTester.elapsed(i)} ms`);
+				globalPerformanceTester.tagTime(i);
+
 				console.log(constructJS(ir));
+				console.log(projects[i], `JS gen time: ${globalPerformanceTester.elapsed(i)} ms`);
+				globalPerformanceTester.tagTime(i);
 			}
 		)
 	}

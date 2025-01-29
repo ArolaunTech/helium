@@ -16,6 +16,7 @@ function findVar(name, owner, vars) {
 		}
 		return i;
 	}
+	console.error("Cannot find variable: ", name, owner, vars);
 }
 
 function isLoop(block) {
@@ -576,7 +577,7 @@ function simplifyReporterStack(ir, scripts, vars, owner) {
 	}
 }
 
-function simplifyBlock(ir, scripts, vars, owner) {
+function simplifyBlock(ir, scripts, scriptidx, vars, owner) {
 	//Turns a block into a simpler form.
 	let opcode = ir[0];
 	let block = [opcode];
@@ -593,12 +594,12 @@ function simplifyBlock(ir, scripts, vars, owner) {
 		case "motion_turnleft": {
 			return simplifyScript([
 				["motion_turnright", ["operator_subtract", 0, block[1]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_turnright": {
 			return simplifyScript([
 				["motion_pointindirection", ["operator_add", ["motion_direction"], block[1]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_pointindirection": {
 			return simplifyScript([
@@ -610,17 +611,17 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						["operator_multiply", Math.PI/180, block[1]]
 					]
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_changexby": {
 			return simplifyScript([
 				["motion_setx", ["operator_add", ["helium_xposition"], block[1]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_changeyby": {
 			return simplifyScript([
 				["motion_sety", ["operator_add", ["helium_yposition"], block[1]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_movesteps": {
 			return simplifyScript([
@@ -640,22 +641,22 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						["helium_sin", ["helium_direction"]]
 					]
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "control_forever": {
 			return simplifyScript([
 				["control_while", true, block[1]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "control_repeat_until": {
 			return simplifyScript([
 				["control_while", ["operator_not", block[1]], block[2]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "sound_changevolumeby": {
 			return simplifyScript([
 				["sound_setvolumeto", ["operator_add", ["sound_volume"], block[1]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_goto": {
 			let targetX = [];
@@ -686,18 +687,18 @@ function simplifyBlock(ir, scripts, vars, owner) {
 			}
 			return simplifyScript([
 				["motion_gotoxy", targetX, targetY]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "music_changeTempo": {
 			return simplifyScript([
 				["music_setTempo", ["operator_add", ["music_getTempo"], block[1]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "control_wait_until": {
-			scripts.push({owner: owner, script:[["helium_nop"]]});
+			scripts.push({owner: owner, parent: scriptidx, script:[["helium_nop"]]});
 			return simplifyScript([
 				["control_repeat_until", block[1], {script:scripts.length-1}]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "control_wait": {
 			let endTime = addNewTempVar(vars, TYPE_NUMBER);
@@ -719,26 +720,26 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						["data_variable", endTime.name]
 					]
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "looks_nextcostume": {
 			return simplifyScript([
 				["looks_switchcostumeto", ["operator_add", 2, ["helium_costumenumber"]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "looks_sayforsecs": {
 			return simplifyScript([
 				["looks_say", block[1]],
 				["control_wait", block[2]],
 				["looks_say", ""]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "looks_thinkforsecs": {
 			return simplifyScript([
 				["looks_think", block[1]],
 				["control_wait", block[2]],
 				["looks_think", ""]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "looks_cleargraphiceffects": {
 			return simplifyScript([
@@ -749,12 +750,12 @@ function simplifyBlock(ir, scripts, vars, owner) {
 				["looks_seteffectto", "MOSAIC", 0],
 				["looks_seteffectto", "BRIGHTNESS", 0],
 				["looks_seteffectto", "GHOST", 0]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "looks_changesizeby": {
 			return simplifyScript([
 				["looks_setsizeto", ["operator_add", ["looks_size"], block[1]]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_pointtowards": {
 			if (block[1] === '_random_') {
@@ -763,7 +764,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						"motion_pointindirection",
 						["operator_round", ["operator_random", -180.0, 180.0]],
 					]
-				], scripts, vars, owner);
+				], scripts, scriptidx, vars, owner);
 			}
 
 			let targetX = ["sensing_of", "x position", block[1]];
@@ -781,7 +782,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						["operator_subtract", targetX, ["helium_xposition"]]
 					]
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_glidesecstoxy": {
 			let duration = addNewTempVar(vars, TYPE_NUMBER);
@@ -790,7 +791,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 			let y = addNewTempVar(vars, TYPE_NUMBER);
 			let dx = addNewTempVar(vars, TYPE_NUMBER);
 			let dy = addNewTempVar(vars, TYPE_NUMBER);
-			scripts.push({owner: owner, script:[
+			scripts.push({owner: owner, parent: scriptidx, script:[
 				[
 					"motion_gotoxy",
 					[
@@ -850,25 +851,25 @@ function simplifyBlock(ir, scripts, vars, owner) {
 					{script:scripts.length-1}
 				]
 
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "looks_setsizeto": {
 			return simplifyScript([
 				["helium_setscaleto", ["operator_multiply", block[1], 0.01]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "sound_cleareffects": {
 			return simplifyScript([
 				["sound_seteffectto", "PITCH", 0],
 				["sound_seteffectto", "PAN", 0]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_glideto": {
 			//console.log(block);
 			if (block[1] === "_mouse_") {
 				return simplifyScript([
 					["motion_glidesecstoxy", block[2], ["sensing_mousex"], ["sensing_mousey"]]
-				], scripts, vars, owner);
+				], scripts, scriptidx, vars, owner);
 			} else if (block[1] === "_random_") {
 				return simplifyScript([
 					[
@@ -877,7 +878,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						["operator_round", ["operator_random", -0.5, 0.5], ["helium_stagewidth"]],
 						["operator_round", ["operator_random", -0.5, 0.5], ["helium_stageheight"]]
 					]
-				], scripts, vars, owner);
+				], scripts, scriptidx, vars, owner);
 			} else {
 				return simplifyScript([
 					[
@@ -886,7 +887,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						["sensing_of", "x position", block[1]],
 						["sensing_of", "y position", block[1]]
 					]
-				], scripts, vars, owner);
+				], scripts, scriptidx, vars, owner);
 			}
 		}
 		case "data_changevariableby": {
@@ -900,7 +901,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						block[2]
 					]
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "motion_ifonedgebounce": {
 			//Vars
@@ -920,7 +921,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 			let dx = addNewTempVar(vars, TYPE_NUMBER);
 			let dy = addNewTempVar(vars, TYPE_NUMBER);
 
-			scripts.push({owner:owner, script:[[
+			scripts.push({owner:owner, parent: scriptidx, script:[[
 				"data_setvariableto",
 				dx.name,
 				[
@@ -932,7 +933,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 					]
 				]
 			]]});
-			scripts.push({owner:owner, script:[[
+			scripts.push({owner:owner, parent: scriptidx, script:[[
 				"data_setvariableto",
 				dy.name,
 				[
@@ -948,7 +949,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 					]
 				]
 			]]});
-			scripts.push({owner:owner, script:[[
+			scripts.push({owner:owner, parent: scriptidx, script:[[
 				"data_setvariableto",
 				dx.name,
 				[
@@ -964,7 +965,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 					]
 				]
 			]]});
-			scripts.push({owner:owner, script:[[
+			scripts.push({owner:owner, parent: scriptidx, script:[[
 				"data_setvariableto",
 				dy.name,
 				[
@@ -977,16 +978,16 @@ function simplifyBlock(ir, scripts, vars, owner) {
 				]
 			]]});
 
-			scripts.push({owner:owner, script:[
+			scripts.push({owner:owner, parent: scriptidx, script:[
 				["data_setvariableto", nearestEdge.name, 2]
 			]});
-			scripts.push({owner:owner, script:[
+			scripts.push({owner:owner, parent: scriptidx, script:[
 				["data_setvariableto", nearestEdge.name, 1]
 			]});
-			scripts.push({owner:owner, script:[
+			scripts.push({owner:owner, parent: scriptidx, script:[
 				["data_setvariableto", nearestEdge.name, 0]
 			]});
-			scripts.push({owner:owner, script:[
+			scripts.push({owner:owner, parent: scriptidx, script:[
 				["data_setvariableto", dx.name, ["helium_cos", ["helium_direction"]]],
 				["data_setvariableto", dy.name, ["helium_sin", ["helium_direction"]]],
 				[
@@ -1175,7 +1176,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 					],
 					{script: scripts.length-1}
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "music_restForBeats": {
 			return simplifyScript([
@@ -1191,7 +1192,7 @@ function simplifyBlock(ir, scripts, vars, owner) {
 						["music_getTempo"]
 					]
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "music_playDrumForBeats": {
 			return simplifyScript([
@@ -1204,13 +1205,13 @@ function simplifyBlock(ir, scripts, vars, owner) {
 					]
 				],
 				["music_restForBeats", block[2]]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		case "music_playNoteForBeats": {
 			//console.log(block);
 			let durationSec = addNewTempVar(vars, TYPE_NUMBER);
 
-			scripts.push({owner: owner, script:[
+			scripts.push({owner: owner, parent: scriptidx, script:[
 				[
 					"helium_playNote", 
 					[
@@ -1246,17 +1247,17 @@ function simplifyBlock(ir, scripts, vars, owner) {
 					["operator_gt", ["data_variable", durationSec.name], 0],
 					{script: scripts.length - 1}
 				]
-			], scripts, vars, owner);
+			], scripts, scriptidx, vars, owner);
 		}
 		default:
 			return [block];
 	}
 }
 
-function simplifyScript(script, scripts, vars, owner) {
+function simplifyScript(script, scripts, scriptidx, vars, owner) {
 	for (let i = 0; i < script.length; i++) {
 		let block = script[i];
-		let simplifiedBlock = simplifyBlock(block, scripts, vars, owner);
+		let simplifiedBlock = simplifyBlock(block, scripts, scriptidx, vars, owner);
 		if (block !== simplifiedBlock) {
 			script.splice(i, 1, ...simplifiedBlock);
 		}
@@ -1404,7 +1405,7 @@ function scriptToSSA(ir, numvars) {
 
 function setVarType(varidx, type, vartypemap) {
 	//console.log(varidx, type, vartypemap);
-	if (type <= vartypemap[varidx].type) { //Don't set type if it wouldn't dp anything
+	if (type <= vartypemap[varidx].type) { //Don't set type if it wouldn't do anything
 		return;
 	}
 	vartypemap[varidx].type = type;
@@ -1455,7 +1456,7 @@ function optimizeIR(ir) {
 				if (internalscriptset.has(block[k])) {
 					ir.scripts[i].script[j][k] = {script: internalscriptmap.get(block[k])};
 				} else {
-					ir.scripts.push({owner: ir.scripts[i].owner, script: block[k]});
+					ir.scripts.push({owner: ir.scripts[i].owner, parent: {script: i, block: j}, script: block[k]});
 					ir.scripts[i].script[j][k] = {script: ir.scripts.length - 1};
 					internalscriptset.add(block[k]);
 					internalscriptmap.set(block[k], ir.scripts.length - 1);
@@ -1519,6 +1520,7 @@ function optimizeIR(ir) {
 
 			//Set types
 			if (opcode === 'data_setvariableto') {
+				console.log(script, block, block[1], owner, ir.variables);
 				let currVar = findVar(block[1], owner, ir.variables);
 				if (Array.isArray(block[2])) {
 					let reporterOpcode = block[2][0];
@@ -1571,6 +1573,7 @@ function optimizeIR(ir) {
 					if (type === TYPE_NUMBER) {
 						block[2] = castToNumber(block[2]);
 					}
+					console.log(currVar);
 					setVarType(currVar, type, variableListMatrix);
 				}
 			} else if (opcode === 'data_changevariableby') {
@@ -1662,7 +1665,7 @@ function optimizeIR(ir) {
 	//console.log(JSON.stringify(ir.scripts));
 	for (let i = 0; i < ir.scripts.length; i++) {
 		let script = ir.scripts[i].script;
-		ir.scripts[i].script = simplifyScript(script, ir.scripts, ir.variables, ir.scripts[i].owner);
+		ir.scripts[i].script = simplifyScript(script, ir.scripts, i, ir.variables, ir.scripts[i].owner);
 	}
 
 	let opcodes = [];

@@ -75,43 +75,6 @@ function setScratch3OpcodeScript(script) {
 	return newScript;
 }
 
-function setVarNameBlock(block) {
-	let opcode = block[0];
-	let newBlock = [opcode];
-	for (let i = 1; i < block.length; i++) {
-		if (Array.isArray(block[i])) {
-			if (Array.isArray(block[i][0])) {
-				newBlock.push(setVarNameScript(block[i]));
-			} else {
-				newBlock.push(setVarNameBlock(block[i]));
-			}
-		} else {
-			newBlock.push(block[i]);
-		}
-	}
-	switch (opcode) {
-		case "data_variable":
-		case "data_showvariable":
-		case "data_hidevariable":
-			return [opcode, "n"+newBlock[1]];
-		case "data_setvariableto":
-		case "data_changevariableby":
-			return [opcode, "n"+newBlock[1], newBlock[2]];
-		default:
-			return newBlock;
-	}
-}
-
-function setVarNameScript(script) {
-	let newScript = [];
-	for (let i = 0; i < script.length; i++) {
-		newScript.push(setVarNameBlock(script[i]));
-	}
-	//console.log(JSON.stringify(script));
-	//console.log(JSON.stringify(newScript));
-	return newScript;
-}
-
 function Scratch2FunctiontoScratch3(block) {
 	let newBlock = ["procedures_definition"];
 	let argDefaults = block[3].filter(x => x !== undefined);
@@ -156,7 +119,7 @@ function Scratch2toIR(obj) {
 		for (let i = 0; i < obj.variables.length; i++) {
 			variables.push({
 				id: varidx,
-				name: "n"+obj.variables[i].name,
+				name: obj.variables[i].name,
 				value: obj.variables[i].value,
 				owner: "Stage"
 			});
@@ -338,9 +301,7 @@ function Scratch2toIR(obj) {
 			}
 			scripts.push({
 				owner: "Stage",
-				script: setVarNameScript(
-					setScratch3OpcodeScript(obj.scripts[i][2])
-				)
+				script: setScratch3OpcodeScript(obj.scripts[i][2])
 			});
 			broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(obj.scripts[i][2]));
 		}
@@ -419,7 +380,7 @@ function Scratch2toIR(obj) {
 						newMonitor = {
 							id: varid, 
 							opcode: "data_variable",
-							params: {VARIABLE: "n"+child.param},
+							params: {VARIABLE: child.param},
 							value: variables[varid].value
 						};
 						break;
@@ -812,12 +773,13 @@ function createScratch3Scripts(blocks) {
 	for (let i = 0; i < blocks.length; i++) {
 		let block = blocks[i];
 		if (block.topLevel) {
-			let script = setVarNameScript(createScratch3Script(block, blocks, blockmap));
+			let script = createScratch3Script(block, blocks, blockmap);
 			if (!doesScriptDoAnything(script)) {
 				continue;
 			}
 			scripts.push({
 				owner: block.owner,
+				parent: -1,
 				script: script
 			})
 		}
@@ -864,7 +826,7 @@ function Scratch3toIR(obj) {
 			if (target.variables.hasOwnProperty(prop)) {
 				variables.push({
 					id: prop,
-					name: "n"+target.variables[prop][0],
+					name: target.variables[prop][0],
 					value: target.variables[prop][1],
 					owner: target.name,
 					cloud: target.variables[prop][0].charCodeAt(0) === 9729
@@ -919,7 +881,7 @@ function Scratch3toIR(obj) {
 			monitors[i].spriteName = "n" + monitors[i].spriteName;
 		}
 		if (monitors[i].opcode === "data_variable") {
-			monitors[i].params.VARIABLE = "n"+monitors[i].params.VARIABLE;
+			monitors[i].params.VARIABLE = monitors[i].params.VARIABLE;
 		}
 	}
 	
