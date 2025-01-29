@@ -1467,7 +1467,7 @@ function optimizeIR(ir) {
 				if (internalscriptset.has(block[k])) {
 					ir.scripts[i].script[j][k] = {script: internalscriptmap.get(block[k])};
 				} else {
-					ir.scripts.push({owner: ir.scripts[i].owner, parent: {script: i, block: j}, script: block[k]});
+					ir.scripts.push({owner: ir.scripts[i].owner, parent: i, script: block[k]});
 					ir.scripts[i].script[j][k] = {script: ir.scripts.length - 1};
 					internalscriptset.add(block[k]);
 					internalscriptmap.set(block[k], ir.scripts.length - 1);
@@ -1476,6 +1476,12 @@ function optimizeIR(ir) {
 		}
 	}
 	console.log(JSON.stringify(ir.scripts));
+
+	//Replace variable names with IDs
+	for (let i = 0; i < ir.scripts.length; i++) {
+		let script = ir.scripts[i].script;
+		
+	}
 
 	//Determine variable+list types
 	let variableListMatrix = [];
@@ -1531,7 +1537,7 @@ function optimizeIR(ir) {
 
 			//Set types
 			if (opcode === 'data_setvariableto') {
-				console.log(script, block, block[1], owner, ir.variables);
+				//console.log(script, block, block[1], owner, ir.variables);
 				let currVar = findVar(block[1], owner, ir.variables);
 				if (Array.isArray(block[2])) {
 					let reporterOpcode = block[2][0];
