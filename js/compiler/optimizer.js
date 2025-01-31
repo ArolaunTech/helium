@@ -64,6 +64,80 @@ function hasWait(block) {
 	return false;
 }
 
+function replaceVariableNamesBlock(block, vars, lists, owner) {
+	//console.log(block, vars);
+	let opcode = block[0];
+	let newBlock = [opcode];
+
+	for (let i = 1; i < block.length; i++) {
+		if (Array.isArray(block[i])) {
+			newBlock.push(replaceVariableNamesBlock(block[i], vars, lists, owner));
+		} else {
+			newBlock.push(block[i]);
+		}
+	}
+
+	switch (opcode) {
+		case "sensing_of": {
+			let property = newBlock[1];
+			let object = newBlock[2];
+			if (object === "_stage_") {
+				object = "Stage";
+			} else {
+				object = "n" + object;
+			}
+			if ((object === "Stage") && ['background #', 'backdrop #', 'backdrop name', 'volume'].includes(property)) {
+				break;
+			}
+			if ((object !== "Stage") && ['x position', 'y position', 'direction', 'costume #', 'costume name', 'size', 'volume'].includes(property)) {
+				break;
+			}
+
+			return ["data_variable", findVar(property, object, vars)];
+		}
+		case "data_setvariableto":
+		case "data_changevariableby": {
+			return [opcode, findVar(newBlock[1], owner, vars), newBlock[2]];
+		}
+		case "data_showvariable":
+		case "data_hidevariable":
+		case "data_variable": {
+			return [opcode, findVar(newBlock[1], owner, vars)];
+		}
+		case "data_listcontents":
+		case "data_lengthoflist":
+		case "data_deletealloflist":
+		case "data_showlist":
+		case "data_hidelist": {
+			return [opcode, findVar(newBlock[1], owner, lists)];
+		}
+		case "data_addtolist":
+		case "data_itemoflist":
+		case "data_deleteoflist": {
+			return [opcode, newBlock[1], findVar(newBlock[2], owner, lists)];
+		}
+		case "data_insertatlist": {
+			return [opcode, newBlock[1], newBlock[2], findVar(newBlock[3], owner, lists)];
+		}
+		case "data_replaceitemoflist": {
+			return [opcode, newBlock[1], findVar(newBlock[2], owner, lists), newBlock[3]];
+		}
+		case "data_itemnumoflist":
+		case "data_listcontainsitem": {
+			return [opcode, findVar(newBlock[1], owner, lists), newBlock[2]];
+		}
+	}
+	return newBlock;
+}
+
+function replaceVariableNames(script, vars, lists, owner) {
+	let newScript = [];
+	for (let i = 0; i < script.length; i++) {
+		newScript.push(replaceVariableNamesBlock(script[i], vars, lists, owner));
+	}
+	return newScript;
+}
+
 function varsUsed(block) {
 	let opcode = block[0];
 	if ((opcode === "readVariable") || (opcode === "data_variable")) {
@@ -82,16 +156,6 @@ function addNewTempVar(vars, type) {
 	//Gives a new var index for temporary vars.
 	let newidx = vars.length;
 
-	//TEMPORARY SOLUTION TO GUARANTEE UNIQUE VARIABLE NAMES.
-	let varNames = new Set();
-	for (let i = 0; i < vars.length; i++) {
-		varNames.add(vars[i].name);
-	}
-
-	while (varNames.has("t" + newidx)) {
-		newidx++;
-	}
-
 	vars.push({
 		id: newidx,
 		name: "t"+newidx,
@@ -99,7 +163,7 @@ function addNewTempVar(vars, type) {
 		type: type,
 		value: DEFAULT_TYPE_VALUES[type]
 	});
-	return {idx: newidx, name: "t"+newidx};
+	return newidx;
 }
 
 function reporterStackType(ir, owner, fullIR) {
@@ -202,1078 +266,17 @@ function reporterStackType(ir, owner, fullIR) {
 				case "costume name":
 					return TYPE_STRING;
 				default:
-					let readVar = findVar(
-						ir[1], 
-						(ir[2] === "_stage_" ? "Stage" : ("n" + ir[2])), 
-						fullIR.variables
-					);
-					return fullIR.variables[readVar].type;
+					return fullIR.variables[ir[1]].type;
 			}
 		case "data_variable":
-			let variableName = ir[1];
-			return fullIR.variables[findVar(variableName, owner, fullIR.variables)].type;
+			return fullIR.variables[ir[1]].type;
 		case "data_itemoflist":
 			let listName = ir[2];
-			return fullIR.lists[findVar(listName, owner, fullIR.lists)].type;
+			return fullIR.lists[listName].type;
 		default:
 			console.error("Unrecognized reporter block:", ir);
 			return TYPE_UNKNOWN;
 	}
-}
-
-function constEvalReporterStack(ir) {
-	let newIR = [ir[0]];
-	for (let i = 1; i < ir.length; i++) {
-		if (Array.isArray(ir[i])) {
-			newIR.push(constEvalReporterStack(ir[i]));
-		} else {
-			newIR.push(ir[i]);
-		}
-	}
-
-	for (let i = 1; i < newIR.length; i++) {
-		if (Array.isArray(newIR[i])) {
-			return newIR;
-		}
-	}
-	//Const evaluation
-	let opcode = newIR[0];
-	switch (opcode) {
-		case "operator_add":
-			return castToNumber(newIR[1]) + castToNumber(newIR[2]);
-		case "operator_subtract":
-			return castToNumber(newIR[1]) - castToNumber(newIR[2]);
-		case "operator_multiply":
-			return castToNumber(newIR[1]) * castToNumber(newIR[2]);
-		case "operator_divide":
-			return castToNumber(newIR[1]) / castToNumber(newIR[2]);
-		case "operator_gt":
-			return castCompare(newIR[1], newIR[2]) > 0;
-		case "operator_lt":
-			return castCompare(newIR[1], newIR[2]) < 0;
-		case "operator_equals":
-			return castCompare(newIR[1], newIR[2]) === 0;
-		case "operator_and":
-			return castToBoolean(newIR[1]) && castToBoolean(newIR[2]);
-		case "operator_or":
-			return castToBoolean(newIR[1]) || castToBoolean(newIR[2]);
-		case "operator_not":
-			return !castToBoolean(newIR[1]);
-		case "operator_join":
-			return castToString(newIR[1]) + castToString(newIR[2]);
-		case "operator_letter_of":
-			const index = newIR[1];
-			const str = newIR[2];
-			if (index < 1 || index > str.length) {
-				return "";
-			}
-			return str.charAt(index - 1);
-		case "operator_length":
-			return castToString(newIR[1]).length;
-		case "operator_contains":
-			return castToString(newIR[1])
-				.toLowerCase()
-				.includes(
-					castToString(newIR[2])
-					.toLowerCase()
-				);
-		case "operator_mod":
-			const mn = castToNumber(newIR[1]);
-			const modulus = castToNumber(newIR[2]);
-			let result = mn % modulus;
-			if (result / modulus < 0) {
-				result += modulus;
-			}
-			return result;
-		case "operator_round":
-			return Math.round(castToNumber(newIR[1]));
-		case "operator_mathop":
-			const mathop = castToString(newIR[1]).toLowerCase();
-			let n = castToNumber(newIR[2]);
-			switch (operator) {
-				case "abs":
-					return Math.abs(n);
-				case "floor":
-					return Math.floor(n);
-				case "ceiling":
-					return Math.ceil(n);
-				case "sqrt":
-					return Math.sqrt(n);
-				case "sin":
-					return Math.round(Math.sin((Math.PI * n) / 180) * 1e10) / 1e10;
-				case "cos":
-					return Math.round(Math.cos((Math.PI * n) / 180) * 1e10) / 1e10;
-				case "tan":
-					n = n % 360;
-					if (n === 90 || n === -270) {
-						return Infinity;
-					}
-					if (n === 270 || n === -90) {
-						return -Infinity;
-					}
-					return Math.round(Math.tan((Math.PI * n) / 180) * 1e10) / 1e10;
-				case "asin":
-					return (Math.asin(n) * 180) / Math.PI;
-				case "acos":
-					return (Math.acos(n) * 180) / Math.PI;
-				case "atan":
-					return (Math.atan(n) * 180) / Math.PI;
-				case "ln":
-					return Math.log(n);
-				case "log":
-					return Math.log(n)/Math.log(10);
-				case "e ^":
-					return Math.exp(n);
-				case "10 ^":
-					return Math.pow(10, n);
-			}
-	}
-	return newIR;
-}
-
-function constEvalScript(ir) {
-	let out = [ir[0]];
-	for (let i = 1; i < ir.length; i++) {
-		let block = ir[i];
-		let newBlock = [block[0]];
-		for (let j = 1; j < block.length; j++) {
-			if (Array.isArray(block[j])) {
-				newBlock.push(constEvalReporterStack(block[j]));
-			} else {
-				newBlock.push(block[j]);
-			}
-		}
-		out.push(newBlock);
-	}
-	return out;
-}
-
-function simplifyReporterStack(ir, scripts, vars, owner) {
-	if (!Array.isArray(ir)) {
-		return ir;
-	}
-	let opcode = ir[0];
-	let block = [opcode];
-	for (let i = 1; i < ir.length; i++) {
-		let simplifiedInput = simplifyReporterStack(ir[i], scripts, vars, owner);
-		block.push(simplifiedInput);
-
-		//if (!Array.isArray(ir[i])) {
-		//	continue;
-		//}
-		//console.log(ir[i], simplifiedInput);
-	}
-	//console.log((opcode==="operator_mathop")?"hi":0,ir, block);
-	switch (opcode) {
-		case "operator_mathop": {
-			switch (block[1]) {
-				case "cos":
-				case "sin":
-					return simplifyReporterStack([
-						"operator_multiply",
-						1e-10,
-						[
-							"operator_round",
-							[
-								"operator_multiply",
-								1e10,
-								[
-									"helium_"+block[1], 
-									["operator_multiply", block[2], Math.PI/180]
-								]
-							]
-						]
-					], scripts, vars, owner);
-				case "asin":
-				case "acos":
-				case "atan":
-					//console.log(block, block[1], block[2]);
-					return simplifyReporterStack([
-						"operator_multiply",
-						180/Math.PI,
-						["helium_"+block[1],block[2]]
-					], scripts, vars, owner);
-				default:
-					return ["helium_"+block[1]].concat(block.slice(2));
-			}
-		}
-		case "sensing_distanceto": {
-			if (block[1] == "_mouse_") {
-				return simplifyReporterStack([
-					"operator_mathop", 
-					"sqrt",
-					[
-						"operator_add",
-						[
-							"operator_multiply",
-							[
-								"operator_subtract",
-								["sensing_mousex"],
-								["helium_xposition"]
-							],
-							[
-								"operator_subtract",
-								["sensing_mousex"],
-								["helium_xposition"]
-							]
-						],
-						[
-							"operator_multiply",
-							[
-								"operator_subtract",
-								["sensing_mousey"],
-								["helium_yposition"]
-							],
-							[
-								"operator_subtract",
-								["sensing_mousey"],
-								["helium_yposition"]
-							]
-						]
-					]
-				], scripts, vars, owner);
-			} else {
-				return simplifyReporterStack([
-					"operator_mathop", 
-					"sqrt",
-					[
-						"operator_add",
-						[
-							"operator_multiply",
-							[
-								"operator_subtract",
-								["sensing_of", "x position", block[1]],
-								["helium_xposition"]
-							],
-							[
-								"operator_subtract",
-								["sensing_of", "x position", block[1]],
-								["helium_xposition"]
-							]
-						],
-						[
-							"operator_multiply",
-							[
-								"operator_subtract",
-								["sensing_of", "y position", block[1]],
-								["helium_yposition"]
-							],
-							[
-								"operator_subtract",
-								["sensing_of", "y position", block[1]],
-								["helium_yposition"]
-							]
-						]
-					]
-				], scripts, vars, owner);
-			} 
-		}
-		case "sensing_loud": {
-			return simplifyReporterStack([
-				"operator_gt",
-				["sensing_loudness"],
-				10
-			], scripts, vars, owner);
-		}
-		case "motion_direction": {
-			return simplifyReporterStack([
-				"operator_subtract",
-				[
-					"operator_mod",
-					[
-						"operator_subtract", 
-						270, 
-						[
-							"operator_multiply", 
-							180/Math.PI, 
-							["helium_direction"]
-						]
-					],
-					360
-				],
-				180
-			], scripts, vars, owner);
-		}
-		case "looks_size": {
-			return simplifyReporterStack([
-				"operator_multiply",
-				100,
-				["helium_scale"]
-			], scripts, vars, owner);
-		}
-		case "looks_costumenumbername": {
-			if (block[1] === 'number') {
-				return simplifyReporterStack([
-					"operator_add",
-					1,
-					["helium_costumenumber"]
-				], scripts, vars, owner);
-			}
-			return simplifyReporterStack([
-				"helium_costumename",
-				["helium_costumenumber"]
-			], scripts, vars, owner);
-		}
-		case "looks_backdropnumbername": {
-			if (block[1] === 'number') {
-				return simplifyReporterStack([
-					"operator_add",
-					1,
-					["helium_backdropnumber"]
-				], scripts, vars, owner);
-			}
-			return simplifyReporterStack([
-				"helium_backdropname",
-				["helium_backdropnumber"]
-			], scripts, vars, owner);
-		}
-		case "operator_random": {
-			return simplifyReporterStack([
-				"operator_add",
-				block[1],
-				[
-					"operator_multiply", 
-					["operator_subtract", block[2], block[1]], 
-					["helium_random"]
-				]
-			], scripts, vars, owner);
-		}
-		case "motion_xposition": {
-			return simplifyReporterStack([
-				"helium_ternary",
-				[
-					"operator_lt", 
-					[
-						"helium_abs", 
-						[
-							"operator_subtract", 
-							["helium_xposition"],
-							["operator_round", ["helium_xposition"]]
-						]
-					],
-					1e-9
-				],
-				["operator_round", ["helium_xposition"]],
-				["helium_xposition"]
-			], scripts, vars, owner);
-		}
-		case "motion_yposition": {
-			return simplifyReporterStack([
-				"helium_ternary",
-				[
-					"operator_lt", 
-					[
-						"helium_abs", 
-						[
-							"operator_subtract", 
-							["helium_yposition"],
-							["operator_round", ["helium_yposition"]]
-						]
-					],
-					1e-9
-				],
-				["operator_round", ["helium_yposition"]],
-				["helium_yposition"]
-			], scripts, vars, owner);
-		}
-		case "operator_subtract": {
-			return simplifyReporterStack([
-				"operator_add",
-				block[1],
-				["operator_multiply", block[2], -1]
-			], scripts, vars, owner);
-		}
-		default:
-			return block;
-	}
-}
-
-function simplifyBlock(ir, scripts, scriptidx, vars, owner) {
-	//Turns a block into a simpler form.
-	let opcode = ir[0];
-	let block = [opcode];
-	for (let i = 1; i < ir.length; i++) {
-		let simplifiedInput = simplifyReporterStack(ir[i], scripts, vars, owner);
-		block.push(simplifiedInput);
-
-		//if (!Array.isArray(ir[i])) {
-		//	continue;
-		//}
-		//console.log(ir[i], simplifiedInput);
-	}
-	switch (opcode) {
-		case "motion_turnleft": {
-			return simplifyScript([
-				["motion_turnright", ["operator_subtract", 0, block[1]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_turnright": {
-			return simplifyScript([
-				["motion_pointindirection", ["operator_add", ["motion_direction"], block[1]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_pointindirection": {
-			return simplifyScript([
-				[
-					"helium_pointindirection",
-					[
-						"operator_subtract",
-						Math.PI/2,
-						["operator_multiply", Math.PI/180, block[1]]
-					]
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_changexby": {
-			return simplifyScript([
-				["motion_setx", ["operator_add", ["helium_xposition"], block[1]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_changeyby": {
-			return simplifyScript([
-				["motion_sety", ["operator_add", ["helium_yposition"], block[1]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_movesteps": {
-			return simplifyScript([
-				[
-					"motion_changexby",
-					[
-						"operator_multiply",
-						block[1],
-						["helium_cos", ["helium_direction"]]
-					]
-				],
-				[
-					"motion_changeyby",
-					[
-						"operator_multiply",
-						block[1],
-						["helium_sin", ["helium_direction"]]
-					]
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "control_forever": {
-			return simplifyScript([
-				["control_while", true, block[1]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "control_repeat_until": {
-			return simplifyScript([
-				["control_while", ["operator_not", block[1]], block[2]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "sound_changevolumeby": {
-			return simplifyScript([
-				["sound_setvolumeto", ["operator_add", ["sound_volume"], block[1]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_goto": {
-			let targetX = [];
-			let targetY = [];
-			if (block[1] === '_mouse_') {
-				targetX = ["sensing_mousex"];
-				targetY = ["sensing_mousey"];
-			} else if (block[1] === '_random_') {
-				targetX = [
-					"operator_round",
-					[
-						"operator_multiply",
-						["operator_random", -0.5, 0.5],
-						["helium_stagewidth"]
-					]
-				];
-				targetY = [
-					"operator_round",
-					[
-						"operator_multiply",
-						["operator_random", -0.5, 0.5],
-						["helium_stageheight"]
-					]
-				];
-			} else {
-				targetX = ["sensing_of", "x position", block[1]];
-				targetY = ["sensing_of", "y position", block[1]];
-			}
-			return simplifyScript([
-				["motion_gotoxy", targetX, targetY]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "music_changeTempo": {
-			return simplifyScript([
-				["music_setTempo", ["operator_add", ["music_getTempo"], block[1]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "control_wait_until": {
-			scripts.push({owner: owner, parent: scriptidx, script:[["helium_nop"]]});
-			return simplifyScript([
-				["control_repeat_until", block[1], {script:scripts.length-1}]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "control_wait": {
-			let endTime = addNewTempVar(vars, TYPE_NUMBER);
-			return simplifyScript([
-				[
-					"data_setvariableto", 
-					endTime.name, 
-					[
-						"operator_add", 
-						["helium_time"], 
-						block[1]
-					]
-				],
-				[
-					"control_wait_until", 
-					[
-						"operator_gt", 
-						["helium_time"], 
-						["data_variable", endTime.name]
-					]
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "looks_nextcostume": {
-			return simplifyScript([
-				["looks_switchcostumeto", ["operator_add", 2, ["helium_costumenumber"]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "looks_sayforsecs": {
-			return simplifyScript([
-				["looks_say", block[1]],
-				["control_wait", block[2]],
-				["looks_say", ""]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "looks_thinkforsecs": {
-			return simplifyScript([
-				["looks_think", block[1]],
-				["control_wait", block[2]],
-				["looks_think", ""]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "looks_cleargraphiceffects": {
-			return simplifyScript([
-				["looks_seteffectto", "COLOR", 0],
-				["looks_seteffectto", "FISHEYE", 0],
-				["looks_seteffectto", "WHIRL", 0],
-				["looks_seteffectto", "PIXELATE", 0],
-				["looks_seteffectto", "MOSAIC", 0],
-				["looks_seteffectto", "BRIGHTNESS", 0],
-				["looks_seteffectto", "GHOST", 0]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "looks_changesizeby": {
-			return simplifyScript([
-				["looks_setsizeto", ["operator_add", ["looks_size"], block[1]]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_pointtowards": {
-			if (block[1] === '_random_') {
-				return simplifyScript([
-					[
-						"motion_pointindirection",
-						["operator_round", ["operator_random", -180.0, 180.0]],
-					]
-				], scripts, scriptidx, vars, owner);
-			}
-
-			let targetX = ["sensing_of", "x position", block[1]];
-			let targetY = ["sensing_of", "y position", block[1]];
-			if (block[1] === '_mouse_') {
-				targetX = ["sensing_mousex"];
-				targetY = ["sensing_mousey"];
-			}
-			return simplifyScript([
-				[
-					"helium_pointindirection", 
-					[
-						"helium_atan2", 
-						["operator_subtract", targetY, ["helium_yposition"]],
-						["operator_subtract", targetX, ["helium_xposition"]]
-					]
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_glidesecstoxy": {
-			let duration = addNewTempVar(vars, TYPE_NUMBER);
-			let start = addNewTempVar(vars, TYPE_NUMBER);
-			let x = addNewTempVar(vars, TYPE_NUMBER);
-			let y = addNewTempVar(vars, TYPE_NUMBER);
-			let dx = addNewTempVar(vars, TYPE_NUMBER);
-			let dy = addNewTempVar(vars, TYPE_NUMBER);
-			scripts.push({owner: owner, parent: scriptidx, script:[
-				[
-					"motion_gotoxy",
-					[
-						"operator_add",
-						["data_variable", x.name],
-						[
-							"operator_multiply",
-							["data_variable", dx.name],
-							[
-								"operator_divide", 
-								[
-									"operator_subtract", 
-									["helium_time"], 
-									["data_variable", start.name]
-								], 
-								["data_variable", duration.name]
-							]
-						]
-					],
-					[
-						"operator_add",
-						["data_variable", y.name],
-						[
-							"operator_multiply",
-							["data_variable", dy.name],
-							[
-								"operator_divide", 
-								[
-									"operator_subtract", 
-									["helium_time"], 
-									["data_variable", start.name]
-								], 
-								["data_variable", duration.name]
-							]
-						]
-					]
-				]
-			]});
-			return simplifyScript([
-				["data_setvariableto", duration.name, block[1]],
-				["data_setvariableto", start.name, ["helium_time"]],
-				["data_setvariableto", x.name, ["helium_xposition"]],
-				["data_setvariableto", y.name, ["helium_yposition"]],
-				["data_setvariableto", dx.name, ["operator_subtract", block[2], ["helium_xposition"]]],
-				["data_setvariableto", dy.name, ["operator_subtract", block[3], ["helium_yposition"]]],
-				[
-					"control_repeat_until", 
-					[
-						"operator_gt",
-						["helium_time"],
-						[
-							"operator_add", 
-							["data_variable", start.name], 
-							["data_variable", duration.name]
-						]
-					],
-					{script:scripts.length-1}
-				]
-
-			], scripts, scriptidx, vars, owner);
-		}
-		case "looks_setsizeto": {
-			return simplifyScript([
-				["helium_setscaleto", ["operator_multiply", block[1], 0.01]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "sound_cleareffects": {
-			return simplifyScript([
-				["sound_seteffectto", "PITCH", 0],
-				["sound_seteffectto", "PAN", 0]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_glideto": {
-			//console.log(block);
-			if (block[1] === "_mouse_") {
-				return simplifyScript([
-					["motion_glidesecstoxy", block[2], ["sensing_mousex"], ["sensing_mousey"]]
-				], scripts, scriptidx, vars, owner);
-			} else if (block[1] === "_random_") {
-				return simplifyScript([
-					[
-						"motion_glidesecstoxy", 
-						block[2], 
-						["operator_round", ["operator_random", -0.5, 0.5], ["helium_stagewidth"]],
-						["operator_round", ["operator_random", -0.5, 0.5], ["helium_stageheight"]]
-					]
-				], scripts, scriptidx, vars, owner);
-			} else {
-				return simplifyScript([
-					[
-						"motion_glidesecstoxy", 
-						block[2], 
-						["sensing_of", "x position", block[1]],
-						["sensing_of", "y position", block[1]]
-					]
-				], scripts, scriptidx, vars, owner);
-			}
-		}
-		case "data_changevariableby": {
-			return simplifyScript([
-				[
-					"data_setvariableto", 
-					block[1], 
-					[
-						"operator_add", 
-						["data_variable", block[1]],
-						block[2]
-					]
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "motion_ifonedgebounce": {
-			//Vars
-			let boundsLeft = addNewTempVar(vars, TYPE_NUMBER);
-			let boundsTop = addNewTempVar(vars, TYPE_NUMBER);
-			let boundsRight = addNewTempVar(vars, TYPE_NUMBER);
-			let boundsBottom = addNewTempVar(vars, TYPE_NUMBER);
-
-			let distLeft = addNewTempVar(vars, TYPE_NUMBER);
-			let distTop = addNewTempVar(vars, TYPE_NUMBER);
-			let distRight = addNewTempVar(vars, TYPE_NUMBER);
-			let distBottom = addNewTempVar(vars, TYPE_NUMBER);
-
-			let minDist = addNewTempVar(vars, TYPE_NUMBER);
-			let nearestEdge = addNewTempVar(vars, TYPE_NUMBER);
-
-			let dx = addNewTempVar(vars, TYPE_NUMBER);
-			let dy = addNewTempVar(vars, TYPE_NUMBER);
-
-			scripts.push({owner:owner, parent: scriptidx, script:[[
-				"data_setvariableto",
-				dx.name,
-				[
-					"helium_max", 
-					0.2, 
-					[
-						"helium_abs", 
-						["data_variable", dx.name]
-					]
-				]
-			]]});
-			scripts.push({owner:owner, parent: scriptidx, script:[[
-				"data_setvariableto",
-				dy.name,
-				[
-					"operator_subtract", 
-					0, 
-					[
-						"helium_max", 
-						0.2, 
-						[
-							"helium_abs", 
-							["data_variable", dy.name]
-						]
-					]
-				]
-			]]});
-			scripts.push({owner:owner, parent: scriptidx, script:[[
-				"data_setvariableto",
-				dx.name,
-				[
-					"operator_subtract", 
-					0, 
-					[
-						"helium_max", 
-						0.2, 
-						[
-							"helium_abs", 
-							["data_variable", dx.name]
-						]
-					]
-				]
-			]]});
-			scripts.push({owner:owner, parent: scriptidx, script:[[
-				"data_setvariableto",
-				dy.name,
-				[
-					"helium_max", 
-					0.2, 
-					[
-						"helium_abs", 
-						["data_variable", dy.name]
-					]
-				]
-			]]});
-
-			scripts.push({owner:owner, parent: scriptidx, script:[
-				["data_setvariableto", nearestEdge.name, 2]
-			]});
-			scripts.push({owner:owner, parent: scriptidx, script:[
-				["data_setvariableto", nearestEdge.name, 1]
-			]});
-			scripts.push({owner:owner, parent: scriptidx, script:[
-				["data_setvariableto", nearestEdge.name, 0]
-			]});
-			scripts.push({owner:owner, parent: scriptidx, script:[
-				["data_setvariableto", dx.name, ["helium_cos", ["helium_direction"]]],
-				["data_setvariableto", dy.name, ["helium_sin", ["helium_direction"]]],
-				[
-					"control_if",
-					["operator_equals", ["data_variable", nearestEdge.name], 0],
-					{script: scripts.length-8}
-				],
-				[
-					"control_if",
-					["operator_equals", ["data_variable", nearestEdge.name], 1],
-					{script: scripts.length-7}
-				],
-				[
-					"control_if",
-					["operator_equals", ["data_variable", nearestEdge.name], 2],
-					{script: scripts.length-6}
-				],
-				[
-					"control_if",
-					["operator_equals", ["data_variable", nearestEdge.name], 3],
-					{script: scripts.length-5}
-				],
-				[
-					"helium_pointindirection", 
-					[
-						"helium_atan2", 
-						["data_variable", dy.name],
-						["data_variable", dx.name]
-					]
-				],
-				[
-					"motion_changexby",
-					[
-						"operator_subtract",
-						[
-							"helium_min",
-							0,
-							[
-								"operator_subtract",
-								["operator_multiply", ["helium_stagewidth"], 0.5],
-								["data_variable", boundsRight.name]
-							]
-						],
-						[
-							"helium_min",
-							0,
-							[
-								"operator_add",
-								["operator_multiply", ["helium_stagewidth"], 0.5],
-								["data_variable", boundsLeft.name]
-							]
-						]
-					]
-				],
-				[
-					"motion_changeyby",
-					[
-						"operator_subtract",
-						[
-							"helium_min",
-							0,
-							[
-								"operator_subtract",
-								["operator_multiply", ["helium_stageheight"], 0.5],
-								["data_variable", boundsTop.name]
-							]
-						],
-						[
-							"helium_min",
-							0,
-							[
-								"operator_add",
-								["operator_multiply", ["helium_stageheight"], 0.5],
-								["data_variable", boundsBottom.name]
-							]
-						]
-					]
-				]
-			]});
-
-			return simplifyScript([
-				["data_setvariableto", boundsLeft.name, ["helium_boundsleft"]],
-				["data_setvariableto", boundsTop.name, ["helium_boundstop"]],
-				["data_setvariableto", boundsRight.name, ["helium_boundsright"]],
-				["data_setvariableto", boundsBottom.name, ["helium_boundsbottom"]],
-
-				[
-					"data_setvariableto", 
-					distLeft.name, 
-					[
-						"helium_max", 
-						0,
-						[
-							"operator_add", 
-							["operator_multiply", ["helium_stagewidth"], 0.5],
-							["data_variable", boundsLeft.name]
-						] 
-					]
-				],
-				[
-					"data_setvariableto", 
-					distTop.name, 
-					[
-						"helium_max", 
-						0,
-						[
-							"operator_subtract", 
-							["operator_multiply", ["helium_stageheight"], 0.5],
-							["data_variable", boundsTop.name]
-						] 
-					]
-				],
-				[
-					"data_setvariableto", 
-					distRight.name, 
-					[
-						"helium_max", 
-						0,
-						[
-							"operator_subtract", 
-							["operator_multiply", ["helium_stagewidth"], 0.5],
-							["data_variable", boundsRight.name]
-						] 
-					]
-				],
-				[
-					"data_setvariableto", 
-					distBottom.name, 
-					[
-						"helium_max", 
-						0,
-						[
-							"operator_add", 
-							["operator_multiply", ["helium_stageheight"], 0.5],
-							["data_variable", boundsBottom.name]
-						] 
-					]
-				],
-
-				[
-					"data_setvariableto", 
-					minDist.name, 
-					[
-						"helium_min", 
-						["helium_min", ["data_variable", distLeft.name], ["data_variable", distRight.name]], 
-						["helium_min", ["data_variable", distTop.name], ["data_variable", distBottom.name]]
-					]
-				],
-				["data_setvariableto", nearestEdge.name, 3],
-				[
-					"control_if", 
-					[
-						"operator_equals", 
-						["data_variable", minDist.name],
-						["data_variable", distRight.name]
-					],
-					{script: scripts.length-4}
-				],
-				[
-					"control_if", 
-					[
-						"operator_equals", 
-						["data_variable", minDist.name], 
-						["data_variable", distTop.name]
-					],
-					{script: scripts.length-3}
-				],
-				[
-					"control_if", 
-					[
-						"operator_equals", 
-						["data_variable", minDist.name], 
-						["data_variable", distLeft.name]
-					],
-					{script: scripts.length-2}
-				],
-				[
-					"control_if", 
-					[
-						"operator_not", 
-						[
-							"operator_gt", 
-							["data_variable", minDist.name],
-							0
-						]
-					],
-					{script: scripts.length-1}
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "music_restForBeats": {
-			return simplifyScript([
-				[
-					"control_wait",
-					[
-						"operator_divide",
-						[
-							"operator_multiply",
-							60,
-							["helium_min", 100, ["helium_max", 0, ["helium_number", block[1]]]]
-						],
-						["music_getTempo"]
-					]
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "music_playDrumForBeats": {
-			return simplifyScript([
-				[
-					"helium_playDrum",
-					[
-						"helium_wrapClamp",
-						block[1],
-						0, 17
-					]
-				],
-				["music_restForBeats", block[2]]
-			], scripts, scriptidx, vars, owner);
-		}
-		case "music_playNoteForBeats": {
-			//console.log(block);
-			let durationSec = addNewTempVar(vars, TYPE_NUMBER);
-
-			scripts.push({owner: owner, parent: scriptidx, script:[
-				[
-					"helium_playNote", 
-					[
-						"helium_min", 
-						130, 
-						[
-							"helium_max", 
-							0, 
-							["helium_number", block[1]]
-						]
-					],
-					["data_variable", durationSec.name]
-				],
-				["control_wait", ["data_variable", durationSec.name]]
-			]});
-
-			return simplifyScript([
-				[
-					"data_setvariableto",
-					durationSec.name,
-					[
-						"operator_divide",
-						[
-							"operator_multiply",
-							60,
-							["helium_min", 100, ["helium_max", 0, ["helium_number", block[2]]]]
-						],
-						["music_getTempo"]
-					]
-				],
-				[
-					"control_if", 
-					["operator_gt", ["data_variable", durationSec.name], 0],
-					{script: scripts.length - 1}
-				]
-			], scripts, scriptidx, vars, owner);
-		}
-		default:
-			return [block];
-	}
-}
-
-function simplifyScript(script, scripts, scriptidx, vars, owner) {
-	for (let i = 0; i < script.length; i++) {
-		let block = script[i];
-		let simplifiedBlock = simplifyBlock(block, scripts, scriptidx, vars, owner);
-		if (block !== simplifiedBlock) {
-			script.splice(i, 1, ...simplifiedBlock);
-		}
-	}
-	return script;
 }
 
 function removeSpecialVarBlock(block, vars, sounds, owner) {
@@ -1293,7 +296,7 @@ function removeSpecialVarBlock(block, vars, sounds, owner) {
 		return [[
 			"operator_subtract", 
 			["helium_time"], 
-			["data_variable", timervar.name]
+			["data_variable", timervar]
 		]];
 	}
 	if (opcode === "sensing_resettimer") {
@@ -1307,9 +310,9 @@ function removeSpecialVarBlock(block, vars, sounds, owner) {
 	let answered = vars[1];
 	if (opcode === "sensing_askandwait") {
 		return [
-			["data_setvariableto", answered.name, false],
+			["data_setvariableto", answered, false],
 			["helium_ask", newBlock[1]],
-			["control_wait_until", ["data_variable", answered.name]]
+			["control_wait_until", ["data_variable", answered]]
 		];
 	}
 
@@ -1480,7 +483,7 @@ function optimizeIR(ir) {
 	//Replace variable names with IDs
 	for (let i = 0; i < ir.scripts.length; i++) {
 		let script = ir.scripts[i].script;
-		
+		ir.scripts[i].script = replaceVariableNames(script, ir.variables, ir.lists, ir.scripts[i].owner);
 	}
 
 	//Determine variable+list types
@@ -1538,16 +541,16 @@ function optimizeIR(ir) {
 			//Set types
 			if (opcode === 'data_setvariableto') {
 				//console.log(script, block, block[1], owner, ir.variables);
-				let currVar = findVar(block[1], owner, ir.variables);
+				let currVar = block[1];
 				if (Array.isArray(block[2])) {
 					let reporterOpcode = block[2][0];
 					if (reporterOpcode === 'data_variable') {
 						console.log(block[2]);
-						let readVar = findVar(block[2][1], owner, ir.variables);
+						let readVar = block[2][1];
 						addChild(readVar, currVar, variableListMatrix);
 					}
 					if (reporterOpcode === 'data_itemoflist') {
-						let readVar = findVar(block[2][2], owner, ir.lists) + ir.variables.length;
+						let readVar = block[2][2] + ir.variables.length;
 						addChild(readVar, currVar, variableListMatrix);
 					}
 					if (reporterOpcode === 'sensing_of') {
@@ -1568,11 +571,7 @@ function optimizeIR(ir) {
 								reporterType = TYPE_STRING;
 								break;
 							default:
-								let readVar = findVar(
-									block[2][1], 
-									(block[2][2] === "_stage_" ? "Stage" : ("n" + block[2][2])), 
-									ir.variables
-								);
+								let readVar = block[2][1];
 								addChild(readVar, currVar, variableListMatrix);
 								reporterVar = true;
 								break;
@@ -1595,7 +594,7 @@ function optimizeIR(ir) {
 				}
 			} else if (opcode === 'data_changevariableby') {
 				//change variable casts the variable to a number
-				setVarType(findVar(block[1], owner, ir.variables), TYPE_NUMBER, variableListMatrix);
+				setVarType(block[1], TYPE_NUMBER, variableListMatrix);
 			} else {
 				//list operations - lists are treated as having one type (remember this works because strings are the universal type)
 				//console.log(block, owner, ir.lists);
@@ -1607,15 +606,15 @@ function optimizeIR(ir) {
 				if (opcode === 'data_insertatlist') {
 					varName = block[3];
 				}
-				let currVar = findVar(varName, owner, ir.lists) + ir.variables.length;
+				let currVar = varName + ir.variables.length;
 				if (Array.isArray(valueName)) {
 					let reporterOpcode = valueName[0];
 					if (reporterOpcode === 'data_variable') {
-						let readVar = findVar(valueName[1], owner, ir.variables);
+						let readVar = valueName[1];
 						addChild(readVar, currVar, variableListMatrix);
 					}
 					if (reporterOpcode === 'data_itemoflist') {
-						let readVar = findVar(valueName[2], owner, ir.lists) + ir.variables.length;
+						let readVar = valueName[2] + ir.variables.length;
 						addChild(readVar, currVar, variableListMatrix);
 					}
 					if (reporterOpcode === 'sensing_of') {
@@ -1636,11 +635,7 @@ function optimizeIR(ir) {
 								reporterType = TYPE_STRING;
 								break;
 							default:
-								let readVar = findVar(
-									valueName[1], 
-									(valueName[2] === "_stage_" ? "Stage" : ("n" + valueName[2])), 
-									ir.variables
-								);
+								let readVar = valueName[1];
 								addChild(readVar, currVar, variableListMatrix);
 								reporterVar = true;
 								break;
