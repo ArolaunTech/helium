@@ -36,9 +36,24 @@ function closeSettingsDialog() {
 
 function uploadFile() {
 	const file = uploadSB.files[0];
+
+	globalPerformanceTester.tagTime(0);
+
 	file.arrayBuffer().then(v=>{
 		bytes = new Uint8Array(v);
-		loadFromSB(bytes).then(o=>{console.log(optimizeIR(ScratchtoIR(o)));});
+		loadFromSB(bytes).then(o=>{
+			console.log(`File read time: ${globalPerformanceTester.elapsed(0)} ms`);
+			globalPerformanceTester.tagTime(1);
+
+			let ir = ScratchtoIR(o);
+
+			console.log(`IR gen time: ${globalPerformanceTester.elapsed(1)} ms`);
+			globalPerformanceTester.tagTime(0);
+
+			console.log(optimizeIR(ir));
+
+			console.log(`Optimize time: ${globalPerformanceTester.elapsed(0)} ms`);
+		});
 	});
 }
 

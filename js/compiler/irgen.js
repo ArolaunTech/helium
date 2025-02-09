@@ -779,7 +779,6 @@ function createScratch3Scripts(blocks) {
 			}
 			scripts.push({
 				owner: block.owner,
-				parent: -1,
 				script: script
 			})
 		}
