@@ -1171,7 +1171,7 @@ class Optimizer {
 
 	countOpcodesBlock(block) {
 		let opcodes = [];
-		if /*(block[0].slice(0,7) !== "helium_") {//*/(true) {
+		if (true) {
 			opcodes = [block[0]];
 		}
 
@@ -1317,13 +1317,30 @@ class Optimizer {
 				if (!this.hasWait(script[j])) {
 					continue;
 				}
+				//Add helium_start and helium_end to the insides of loops
+				let innerScript = -1;
+				for (let k = 1; k < script[j].length; k++) {
+					if (!script[j][k].val.script) {
+						continue;
+					}
+					innerScript = script[j][k].val.script;
+					break;
+				}
+				if (innerScript !== -1) {
+					this.ir.ssa[innerScript].splice(1,0,["helium_start"]);
+					this.ir.ssa[innerScript].push(["helium_end"]);
+				}
+
+				//Loops/wait blocks can change where script execution happens so insert a end/start pair
 				this.ir.ssa[i].splice(j, 0, ["helium_end"]);
 				this.ir.ssa[i].splice(j+2, 0, ["helium_start"]);
 				j++;
-				console.log(i, j, script[j]);
+				//console.log(i, j, script[j]);
 			}
-			this.ir.ssa[i].splice(1,0,["helium_start"]);
-			this.ir.ssa[i].push(["helium_end"]);
+			if (doesScriptDoAnything(script)) {
+				this.ir.ssa[i].splice(1,0,["helium_start"]);
+				this.ir.ssa[i].push(["helium_end"]);
+			}
 		}
 
 		//Remove empty blocks
@@ -1473,16 +1490,59 @@ class Optimizer {
 			for (let j = 0; j < script.length; j++) {
 				let opcode = script[j][0];
 
+				/*
+				//Currently loops will not get merge phi functions as their contents are treated as separate basic blocks.
+				//This may change in later versions of Helium.
+
 				if (this.isLoop(script[j])) {
-					console.log(j, opcode, script[j]);
+					if (opcode !== "control_while") {
+						console.error("Please tell ArolaunTech to add support for this loop:", j, opcode, script[j]);
+						continue;
+					}
+
+					let innerScript = script[j][2].val.script;
+					//Search loop for updates of variables so we can add merge phis
+					let innerUpdates = []; //Logs variation number
+					for (let i = 0; i < totalVariables; i++) {
+						innerUpdates.push(-1);
+					}
+
+					for (let j = this.ir.ssa[innerScript].length - 1; j >= 0; j--) {
+						let block = this.ir.ssa[innerScript][j];
+						if (block[0] !== 'helium_variation') {
+							continue;
+						}
+						console.log(block);
+					}
+
+					console.log(j, opcode, script[j], innerScript);
 					continue;
-				}
+				}*/
 				if (opcode === "control_if") {
-					console.log(j, opcode, script[j]);
+					let innerScript = script[j][2].val.script;
+					let innerUpdates = []; //Logs variation number
+					for (let i = 0; i < totalVariables; i++) {
+						innerUpdates.push(-1);
+					}
+
+					for (let j = this.ir.ssa[innerScript].length - 1; j >= 0; j--) {
+						let block = this.ir.ssa[innerScript][j];
+						if (block[0] !== 'helium_variation') {
+							continue;
+						}
+						console.log(block[1], innerUpdates);
+						if (innerUpdates[block[1][0]] !== -1) {
+							innerUpdates[block[1][0]] = innerUpdates[block[1][1]];
+						}
+					}
+
+					console.log(j, opcode, script[j], innerScript, innerUpdates);
 					continue;
 				}
 				if (opcode === "control_if_else") {
-					console.log(j, opcode, script[j]);
+					let innerScriptWorks = script[j][2].val.script;
+					let innerScriptFails = script[j][3].val.script;
+					console.log(j, opcode, script[j], innerScriptWorks, innerScriptFails);
 					continue;
 				}
 				if (opcode === "helium_variation") {
