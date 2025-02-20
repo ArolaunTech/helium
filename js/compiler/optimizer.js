@@ -1410,8 +1410,8 @@ class Optimizer {
 						script[j][2], 
 						false
 					];
-					this.ir.ssa[i][j] = newBlock;
 					variations[script[j][1].val]++;
+					this.ir.ssa[i][j] = newBlock;
 					//console.log(j, this.ir.ssa[i][j]);
 				}
 				if ([
@@ -1486,6 +1486,8 @@ class Optimizer {
 				}
 			}
 
+			script = this.ir.ssa[i];
+
 			//Add phi functions
 			for (let j = 0; j < script.length; j++) {
 				let opcode = script[j][0];
@@ -1521,28 +1523,96 @@ class Optimizer {
 				if (opcode === "control_if") {
 					let innerScript = script[j][2].val.script;
 					let innerUpdates = []; //Logs variation number
-					for (let i = 0; i < totalVariables; i++) {
+					for (let k = 0; k < totalVariables; k++) {
 						innerUpdates.push(-1);
 					}
 
-					for (let j = this.ir.ssa[innerScript].length - 1; j >= 0; j--) {
-						let block = this.ir.ssa[innerScript][j];
+					let innerScriptLength = this.ir.ssa[innerScript].length;
+					for (let k = 0; k < innerScriptLength; k++) {
+						let block = this.ir.ssa[innerScript][k];
 						if (block[0] !== 'helium_variation') {
 							continue;
 						}
-						console.log(block[1], innerUpdates);
-						if (innerUpdates[block[1][0]] !== -1) {
-							innerUpdates[block[1][0]] = innerUpdates[block[1][1]];
-						}
+						innerUpdates[block[1][0]] = block[1][1];
 					}
 
-					console.log(j, opcode, script[j], innerScript, innerUpdates);
+					let insert = [];
+					for (let k = 0; k < totalVariables; k++) {
+						if (innerUpdates[k] === -1) {
+							continue;
+						}
+						insert.push([
+							"helium_variation",
+							[k, variations[k]],
+							[
+								"helium_phi", 
+								["data_variable", k], 
+								["helium_getvariation", k, innerUpdates[k]]
+							],
+							false
+						]);
+
+						variations[k]++;
+					}
+
+					this.ir.ssa[i].splice(j+1, 0, ...insert);
+
+					//console.log(j, opcode, script[j], innerScript, innerUpdates, insert);
 					continue;
 				}
 				if (opcode === "control_if_else") {
-					let innerScriptWorks = script[j][2].val.script;
-					let innerScriptFails = script[j][3].val.script;
-					console.log(j, opcode, script[j], innerScriptWorks, innerScriptFails);
+					let truthyInnerScript = script[j][2].val.script;
+					let falsyInnerScript = script[j][3].val.script;
+
+					let truthyUpdates = [];
+					let falsyUpdates = [];
+					for (let k = 0; k < totalVariables; k++) {
+						truthyUpdates.push(-1);
+						falsyUpdates.push(-1);
+					}
+
+					let truthyInnerScriptLength = this.ir.ssa[truthyInnerScript].length;
+					let falsyInnerScriptLength = this.ir.ssa[falsyInnerScript].length;
+
+					for (let k = 0; k < truthyInnerScriptLength; k++) {
+						let block = this.ir.ssa[truthyInnerScript][k];
+						if (block[0] !== 'helium_variation') {
+							continue;
+						}
+						truthyUpdates[block[1][0]] = block[1][1];
+					}
+
+					for (let k = 0; k < falsyInnerScriptLength; k++) {
+						let block = this.ir.ssa[falsyInnerScript][k];
+						if (block[0] !== 'helium_variation') {
+							continue;
+						}
+						falsyUpdates[block[1][0]] = block[1][1];
+					}
+
+					let insert = [];
+					for (let k = 0; k < totalVariables; k++) {
+						if ((truthyUpdates[k] === -1) && (falsyUpdates[k] === -1)) {
+							continue;
+						}
+						let phi = [
+							(truthyUpdates[k] === -1) ? ["data_variable", k] : ["helium_getvariation", k, truthyUpdates[k]],
+							(falsyUpdates[k] === -1) ? ["data_variable", k] : ["helium_getvariation", k, falsyUpdates[k]],
+						];
+
+						insert.push([
+							"helium_variation",
+							[k, variations[k]],
+							phi,
+							false
+						]);
+
+						variations[k]++;
+					}
+
+					this.ir.ssa[i].splice(j+1, 0, ...insert);
+
+					//console.log(j, opcode, script[j], truthyUpdates, falsyUpdates);
 					continue;
 				}
 				if (opcode === "helium_variation") {
