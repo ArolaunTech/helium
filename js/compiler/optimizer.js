@@ -517,20 +517,25 @@ class Optimizer {
 			case "motion_movesteps": {
 				return this.simplifyScript([
 					[
-						"motion_changexby",
+						"motion_gotoxy",
 						[
-							"operator_multiply",
-							block[1],
-							["helium_cos", ["helium_direction"]]
-						]
-					],
-					[
-						"motion_changeyby",
+							"operator_add",
+							["motion_xposition"],
+							[
+								"operator_multiply",
+								block[1],
+								["helium_cos", ["helium_direction"]]
+							]
+						],
 						[
-							"operator_multiply",
-							block[1],
-							["helium_sin", ["helium_direction"]]
-						]
+							"operator_add",
+							["motion_yposition"],
+							[
+								"operator_multiply",
+								block[1],
+								["helium_sin", ["helium_direction"]]
+							]
+						],
 					]
 				], owner);
 			}
@@ -757,15 +762,15 @@ class Optimizer {
 			}
 			case "motion_glideto": {
 				//console.log(block);
-				if (block[1] === "_mouse_") {
+				if (block[2] === "_mouse_") {
 					return this.simplifyScript([
-						["motion_glidesecstoxy", block[2], ["sensing_mousex"], ["sensing_mousey"]]
+						["motion_glidesecstoxy", block[1], ["sensing_mousex"], ["sensing_mousey"]]
 					], owner);
-				} else if (block[1] === "_random_") {
+				} else if (block[2] === "_random_") {
 					return this.simplifyScript([
 						[
 							"motion_glidesecstoxy", 
-							block[2], 
+							block[1], 
 							["operator_round", ["operator_random", -0.5, 0.5], ["helium_stagewidth"]],
 							["operator_round", ["operator_random", -0.5, 0.5], ["helium_stageheight"]]
 						]
@@ -774,7 +779,7 @@ class Optimizer {
 					return this.simplifyScript([
 						[
 							"motion_glidesecstoxy", 
-							block[2], 
+							block[1], 
 							["sensing_of", "x position", block[1]],
 							["sensing_of", "y position", block[1]]
 						]
@@ -1299,7 +1304,19 @@ class Optimizer {
 		}
 		opcodes = [...new Set(opcodes)];
 		console.log(JSON.stringify(opcodes), opcodes.length);
-		console.log(JSON.stringify(this.ir.scripts));
+		console.log(structuredClone(this.ir.scripts));
+
+		//TEMPORARY PRINT
+		/*for (let i = 0; i < this.ir.scripts.length; i++) {
+			let script = this.ir.scripts[i].script;
+			for (let j = 0; j < script.length; j++) {
+				let opcode = script[j][0];
+				if (opcode !== 'data_setvariableto') {
+					continue;
+				}
+				console.log(i, j, script[j]);
+			}
+		}*/
 
 		//SSA (not really)
 		this.ir.ssa = [];
@@ -1355,12 +1372,12 @@ class Optimizer {
 				}
 			}
 		}
-		console.log(JSON.stringify(this.ir.ssa));
+		console.log(structuredClone(this.ir.ssa));
 
 		//Turn variables to values
 		let variations = [];
-		let totalVariables = this.ir.variables.length + this.ir.lists.length;
-		let numIrVariables = this.ir.variables.length;
+		const totalVariables = this.ir.variables.length + this.ir.lists.length;
+		const numIrVariables = this.ir.variables.length;
 		for (let i = 0; i < totalVariables; i++) {
 			variations.push(0);
 		}
@@ -1596,6 +1613,7 @@ class Optimizer {
 							continue;
 						}
 						let phi = [
+							"helium_phi",
 							(truthyUpdates[k] === -1) ? ["data_variable", k] : ["helium_getvariation", k, truthyUpdates[k]],
 							(falsyUpdates[k] === -1) ? ["data_variable", k] : ["helium_getvariation", k, falsyUpdates[k]],
 						];
@@ -1619,6 +1637,12 @@ class Optimizer {
 					if (script[j][3]) {
 						continue;
 					}
+
+					let varIndex = script[j][1][0];
+					if (varIndex < numIrVariables) {
+					//	continue;
+					}
+
 					console.log(j, opcode, script[j]);
 					continue;
 				}
