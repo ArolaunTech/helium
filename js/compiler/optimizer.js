@@ -1467,6 +1467,7 @@ class Optimizer {
 									script[j][1]
 								]
 							);
+							break;
 						case "data_deleteoflist":
 							newBlock.push(
 								[
@@ -1475,6 +1476,7 @@ class Optimizer {
 									script[j][1]
 								]
 							);
+							break;
 						case "data_replaceitemoflist":
 							newBlock.push(
 								[
@@ -1484,8 +1486,10 @@ class Optimizer {
 									script[j][3]
 								]
 							);
+							break;
 						case "data_deletealloflist":
 							newBlock.push([]);
+							break;
 						case "data_insertatlist":
 							newBlock.push(
 								[
@@ -1640,10 +1644,10 @@ class Optimizer {
 
 					let varIndex = script[j][1][0];
 					if (varIndex < numIrVariables) {
-					//	continue;
+						continue;
 					}
 
-					console.log(j, opcode, script[j]);
+					console.log(i, j, opcode, script[j]);
 					continue;
 				}
 			}
