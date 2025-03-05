@@ -1,5 +1,4 @@
 .DS_Store
-js/zip-js
 designs
 js/debug/wabt/
 js/debug/wasmgenerations/
