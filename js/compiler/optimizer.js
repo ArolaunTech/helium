@@ -1643,11 +1643,35 @@ class Optimizer {
 					}
 
 					let varIndex = script[j][1][0];
-					if (varIndex < numIrVariables) {
-						continue;
+					if (varIndex < numIrVariables) continue;
+					if (script[j][2].length === 0) continue;
+					if (script[j][2][0] === "helium_phi") continue;
+
+					let variation1 = script[j][1];
+					let variation2 = [];
+					for (let k = j-1; k > 0; k--) {
+						if (script[k][0] !== 'helium_variation') continue;
+						if (script[k][1][0] !== variation1[0]) continue;
+						variation2 = script[k][1];
+						break;
 					}
 
-					console.log(i, j, opcode, script[j]);
+					let phi = [
+						"helium_phi",
+						["helium_getvariation", variation1[0], variation1[1]],
+						["helium_getvariation", variation2[0], variation2[1]],
+					];
+
+					this.ir.ssa[i].splice(j+1, 0, [
+						"helium_variation",
+						[varIndex, variations[varIndex]],
+						phi,
+						false
+					]);
+
+					variations[varIndex]++;
+
+					//console.log(i, j, opcode, script[j], variation1, variation2);
 					continue;
 				}
 			}
