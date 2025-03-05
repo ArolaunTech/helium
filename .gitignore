@@ -2,6 +2,5 @@
 designs
 js/debug/wabt/
 js/debug/wasmgenerations/
-scratch-sb1-converter/
 tests/json/
 line-counter.py
