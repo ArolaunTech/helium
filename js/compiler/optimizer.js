@@ -1243,6 +1243,27 @@ class Optimizer {
 		return ssa;
 	}
 
+	replaceVariableCallsBlock(block, variations) {
+		if (block[0] === 'data_variable') {
+			//Replace with variation
+			return [
+				"helium_getvariation",
+				block[1],
+				variations[block[1]]
+			];
+		}
+
+		let newBlock = [block[0]];
+		for (let i = 1; i < block.length; i++) {
+			if (Array.isArray(block[i])) {
+				newBlock.push(this.replaceVariableCallsBlock(block[i], variations));
+			} else {
+				newBlock.push(block[i]);
+			}
+		}
+		return newBlock;
+	}
+
 	optimizeIR() {
 		console.log(structuredClone(this.ir));
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1674,6 +1695,15 @@ class Optimizer {
 					//console.log(i, j, opcode, script[j], variation1, variation2);
 					continue;
 				}
+			}
+
+			let variableSetters = [];
+			for (let j = 0; j < totalVariables; j++) variableSetters.push(-1);
+			for (let j = 0; j < script.length; j++) { //Replace data_variable with variations
+				if (script[j][0] === 'helium_variation') variableSetters[script[j][1][0]] = script[j][1][1];
+				this.ir.ssa[i][j] = this.replaceVariableCallsBlock(script[j], variableSetters);
+
+				//console.log(variableSetters);
 			}
 		}
 
