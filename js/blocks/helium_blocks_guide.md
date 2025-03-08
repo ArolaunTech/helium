@@ -8,7 +8,7 @@ This document is intended as a guide to the various internal blocks used inside 
 
 <hr/>
 
- - ** helium_videomotion ** <br/>
+ - **helium_videomotion** <br/>
    The monitor form of the <br/> 
    ![videoSensing_videoOn](/js/blocks/imgs/videoSensing_videoOn.svg) <br/>
    block.
