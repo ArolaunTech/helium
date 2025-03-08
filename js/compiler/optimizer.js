@@ -1697,6 +1697,7 @@ class Optimizer {
 				}
 			}
 
+			//Replace data_variable
 			let variableSetters = [];
 			for (let j = 0; j < totalVariables; j++) variableSetters.push(-1);
 			for (let j = 0; j < script.length; j++) { //Replace data_variable with variations
@@ -1705,6 +1706,8 @@ class Optimizer {
 
 				//console.log(variableSetters);
 			}
+
+			//Add @ computation
 		}
 
 		//Optimization passes

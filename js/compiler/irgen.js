@@ -411,7 +411,7 @@ function Scratch2toIR(obj) {
 					case "senseVideoMotion":
 						newMonitor = {
 							id: "helium_videomotion",
-							opcode: "helium_video_videomotion",
+							opcode: "videoSensing_videoOn",
 							params: {
 								TYPE: (child.param[0] === "d" ? "direction" : "motion"), 
 								THING: (child.param[child.param.length - 2] === "g" ? "Stage" : child.target)
