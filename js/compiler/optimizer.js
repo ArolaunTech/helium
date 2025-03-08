@@ -255,6 +255,7 @@ class Optimizer {
 				switch (block[1]) {
 					case "cos":
 					case "sin":
+					case "tan":
 						return this.simplifyReporterStack([
 							"operator_multiply",
 							1e-10,
@@ -387,7 +388,7 @@ class Optimizer {
 					["helium_scale"]
 				], owner);
 			}
-			case "looks_costumenumbe": {
+			case "looks_costumenumbername": {
 				if (block[1] === 'number') {
 					return this.simplifyReporterStack([
 						"operator_add",
@@ -396,11 +397,11 @@ class Optimizer {
 					], owner);
 				}
 				return this.simplifyReporterStack([
-					"helium_costum",
+					"helium_costume",
 					["helium_costumenumber"]
 				], owner);
 			}
-			case "looks_backdropnumbe": {
+			case "looks_backdropnumbername": {
 				if (block[1] === 'number') {
 					return this.simplifyReporterStack([
 						"operator_add",
@@ -409,11 +410,11 @@ class Optimizer {
 					], owner);
 				}
 				return this.simplifyReporterStack([
-					"helium_backdro",
+					"helium_backdrop",
 					["helium_backdropnumber"]
 				], owner);
 			}
-			case "operator_random": {
+			case "operator_random": { //TODO: FIX THIS
 				return this.simplifyReporterStack([
 					"operator_add",
 					block[1],
