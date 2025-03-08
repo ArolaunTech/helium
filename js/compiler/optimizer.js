@@ -1274,6 +1274,14 @@ class Optimizer {
 			];
 		}
 
+		if (block[0] === 'helium_updatevar') {
+			return [
+				"helium_updatevar",
+				block[1],
+				variations[block[1]]
+			];
+		}
+
 		let newBlock = [block[0]];
 		for (let i = 1; i < block.length; i++) {
 			if (Array.isArray(block[i])) {
