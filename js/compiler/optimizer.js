@@ -417,11 +417,31 @@ class Optimizer {
 			case "operator_random": { //TODO: FIX THIS
 				return this.simplifyReporterStack([
 					"operator_add",
-					block[1],
+					["helium_min", block[1], block[2]],
 					[
-						"operator_multiply", 
-						["operator_subtract", block[2], block[1]], 
-						["helium_random"]
+						"helium_ternary",
+						["operator_and", ["helium_isint", block[1]], ["helium_isint", block[2]]],
+						[
+							"helium_floor",
+							[
+								"operator_multiply", 
+								["helium_random"], 
+								[
+									"operator_subtract",
+									["operator_add", ["helium_max", block[1], block[2]], 1],
+									["helium_min", block[1], block[2]],
+								]
+							]
+						],
+						[
+							"operator_multiply", 
+							["helium_random"], 
+							[
+								"operator_subtract",
+								["helium_max", block[1], block[2]],
+								["helium_min", block[1], block[2]],
+							]
+						]
 					]
 				], owner);
 			}

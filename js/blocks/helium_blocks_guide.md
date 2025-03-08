@@ -143,3 +143,9 @@ This document is intended as a guide to the various internal blocks used inside 
 
  - **helium_phi:** <br/>
    Defines a phi node.
+
+ - **helium_ternary:** <br/>
+   Defines a ternary statement.
+
+ - **helium_isint:** <br/>
+   Returns if a number is an integer.
