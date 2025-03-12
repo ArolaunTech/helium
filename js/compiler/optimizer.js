@@ -1179,6 +1179,48 @@ class Optimizer {
 					]
 				], owner);
 			}
+			case "data_insertatlist": {
+				let iteration = this.addNewTempVar();
+				let list = this.addNewTempVar();
+
+				this.ir.scripts.push({owner: owner, script: [
+					[
+						"data_replaceitemoflist", 
+						['data_variable', iteration],
+						["data_variable", list],
+						[
+							"data_itemoflist",
+							["operator_subtract", ["data_variable", iteration], 1],
+							['data_variable', list]
+						]
+					],
+					["data_changevariableby", iteration, -1]
+				]});
+
+				return this.simplifyScript([
+					["data_setvariableto", list, block[3]],
+					[
+						"data_addtolist", //Duplicate last item of list
+						[
+							"data_itemoflist",
+							["data_lengthoflist", ["data_variable", list]],
+							["data_variable", list]
+						],
+						["data_variable", list]
+					],
+					[
+						"data_setvariableto", //Loop to set list elements
+						iteration, 
+						["operator_subtract", ["data_lengthoflist", ["data_variable", list], 1]]
+					],
+					[
+						"control_while",
+						["operator_gt", ["data_variable", iteration], block[2]],
+						{script: this.ir.scripts.length - 1}
+					],
+					["data_replaceitemoflist", block[2], ["data_variable", list], block[1]]
+				], owner);
+			}
 			default:
 				return [block];
 		}
@@ -1737,6 +1779,19 @@ class Optimizer {
 			}
 
 			//Add @ computation
+			for (let j = 0; j < script.length; j++) {
+				let opcode = script[j][0];
+				if (opcode !== 'helium_variation') continue;
+
+				console.log(script[j], opcode);
+
+				let insert = ["helium_@", script[j][1]];
+				if (script[j][2][0] === 'helium_phi') {
+					//Phi node - @ computation is a simple max
+				} else {
+					//List 
+				}
+			}
 		}
 
 		//Optimization passes

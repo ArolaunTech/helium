@@ -149,3 +149,6 @@ This document is intended as a guide to the various internal blocks used inside 
 
  - **helium_isint:** <br/>
    Returns if a number is an integer.
+
+ - **helium_@:** <br/>
+   Defines some @ computation.
