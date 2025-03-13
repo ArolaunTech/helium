@@ -53,6 +53,13 @@ function uploadFile() {
 			console.log(simpleIRtoJS(ir));
 
 			console.log(`JS generation time: ${globalPerformanceTester.elapsed(0)} ms`);
+			globalPerformanceTester.tagTime(1);
+
+			ir = optimizeIR(ir);
+
+			console.log(`Optimizer time: ${globalPerformanceTester.elapsed(1)} ms`);
+
+			
 		});
 	});
 }

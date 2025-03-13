@@ -107,7 +107,7 @@ function Scratch2FunctiontoScratch3(block) {
 }
 
 function Scratch2toIR(obj) {
-	console.log(obj);
+	//console.log(obj);
 	obj.objName = "Stage";
 	//let sprites = assembleSpritesFromScratch2ObjectList(obj);
 	let objs = [obj];
@@ -456,7 +456,8 @@ function Scratch2toIR(obj) {
 		sprites: sprites,
 		sounds: sounds,
 		variables: variables,
-		v2info: obj.info
+		v2info: obj.info,
+		stageIndex: 0
 	};
 }
 
@@ -754,7 +755,7 @@ function Scratch3toIR(obj) {
 					id: prop,
 					name: target.variables[prop][0],
 					value: target.variables[prop][1],
-					owner: target.name,
+					owner: i,
 					cloud: target.variables[prop][0].charCodeAt(0) === 9729
 				});
 			}
@@ -766,7 +767,7 @@ function Scratch3toIR(obj) {
 					id: prop,
 					name: target.lists[prop][0],
 					value: target.lists[prop][1],
-					owner: target.name
+					owner: i
 				});
 			}
 		}
@@ -781,7 +782,7 @@ function Scratch3toIR(obj) {
 		}
 
 		for (let j in target.sounds) {
-			sounds.push({owner: target.name, obj:target.sounds[j]});
+			sounds.push({owner: i, obj:target.sounds[j]});
 		}
 
 		for (let j in target.costumes) {
@@ -793,7 +794,7 @@ function Scratch3toIR(obj) {
 
 		for (let prop in target.blocks) {
 			if (target.blocks.hasOwnProperty(prop)) {
-				blocks.push(cleanScratch3Block(target.blocks[prop], target.name, prop));
+				blocks.push(cleanScratch3Block(target.blocks[prop], i, prop));
 			}
 		}
 	}
@@ -828,6 +829,22 @@ function Scratch3toIR(obj) {
 	ir.scripts = createScratch3Scripts(blocks);
 	ir.v3info = obj.meta;
 	//console.log(JSON.stringify(ir.blocks));
+
+	for (let i = 0; i < ir.scripts.length; i++) {
+		if (ir.scripts[i].owner === 'Stage') {
+			ir.scripts[i].owner = stageIdx;
+			continue;
+		}
+		let k = 0;
+		for (; k < sprites.length; k++) {
+			if (sprites[k].isStage) continue;
+			if (sprites[k].name == ir.scripts[i].owner) break;
+		}
+		ir.scripts[i].owner = k;
+	}
+
+	ir.stageIndex = stageIdx;
+
 	return ir;
 }
 

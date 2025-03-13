@@ -8,10 +8,26 @@ class SimpleIRtoJS {
 		this.ir = newIR;
 	}
 
+	getSprite(id) {
+		return `sprites[${id}]`;
+	}
+
 	createJSFromScript(script, id) {
 		//Turns a single script's blocks into javascript code.
 		let out = `function* script${id}() {`;
-		console.log(script)
+		console.log(script);
+		for (let i = 1; i < script.script.length; i++) {
+			let block = script.script[i];
+			let opcode = block[0];
+
+			switch (opcode) {
+				case "motion_gotoxy": {
+					
+				}
+				default:
+					console.log(block);
+			}
+		}
 		return out;
 	}
 

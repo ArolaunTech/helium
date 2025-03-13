@@ -23,15 +23,11 @@ class Optimizer {
 
 	findVar(name, owner, vars) {
 		for (let i = 0; i < vars.length; i++) {
-			if (vars[i].name !== name) {
-				continue;
-			}
-			if ((vars[i].owner !== 'Stage') && (vars[i].owner !== owner)) {
-				continue;
-			}
+			if (vars[i].name !== name) continue;
+			if ((vars[i].owner !== this.ir.stageIndex) && (vars[i].owner !== owner)) continue;
 			return i;
 		}
-		console.error("Cannot find variable: ", name, owner, vars);
+		console.error("Cannot find variable: ", name, owner, vars, structuredClone(this.ir));
 	}
 
 	isLoop(block) {
@@ -93,12 +89,17 @@ class Optimizer {
 				let property = newBlock[1];
 				let object = newBlock[2];
 				if (object === "_stage_") {
-					object = "Stage";
+					object = this.ir.stageIndex;
 				} else {
-					object = "n" + object;
+					let k = 0;
+					for (; k < this.ir.sprites.length; k++) {
+						if (this.ir.sprites[k].isStage) continue;
+						if (this.ir.sprites[k].name === object) break;
+					}
+					object = k;
 				}
 				if (
-					(object === "Stage") && 
+					(object === this.ir.stageIndex) && 
 					[
 						'background #', 
 						'backdrop #', 
@@ -109,7 +110,7 @@ class Optimizer {
 					break;
 				}
 				if (
-					(object !== "Stage") && 
+					(object !== this.ir.stageIndex) && 
 					[
 						'x position', 
 						'y position', 
@@ -1783,7 +1784,7 @@ class Optimizer {
 				let opcode = script[j][0];
 				if (opcode !== 'helium_variation') continue;
 
-				console.log(script[j], opcode);
+				//console.log(script[j], opcode);
 
 				let insert = ["helium_@", script[j][1]];
 				if (script[j][2][0] === 'helium_phi') {
