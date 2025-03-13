@@ -47,6 +47,7 @@ function runTests() {
 				console.log(projects[i], `IR gen time: ${globalPerformanceTester.elapsed(i)} ms`);
 				globalPerformanceTester.tagTime(i);
 
+				/*
 				ir = optimizeIR(ir);
 				console.log(projects[i], `Optimize time: ${globalPerformanceTester.elapsed(i)} ms`);
 				globalPerformanceTester.tagTime(i);
@@ -58,6 +59,9 @@ function runTests() {
 				console.log(constructJS(ir));
 				console.log(projects[i], `JS gen time: ${globalPerformanceTester.elapsed(i)} ms`);
 				globalPerformanceTester.tagTime(i);
+				*/
+				console.log(simpleIRtoJS(ir));
+				console.log(projects[i], `JS gen time: ${globalPerformanceTester.elapsed(i)} ms`);
 			}
 		)
 	}

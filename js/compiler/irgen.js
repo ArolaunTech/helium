@@ -109,107 +109,63 @@ function Scratch2FunctiontoScratch3(block) {
 function Scratch2toIR(obj) {
 	console.log(obj);
 	obj.objName = "Stage";
-	let hasChildren = (typeof obj.children !== 'undefined');
-	//console.log(obj);
+	//let sprites = assembleSpritesFromScratch2ObjectList(obj);
+	let objs = [obj];
+	for (let i = 0; i < obj.children.length; i++) {
+		objs.push(obj.children[i]);
+	}
+	let objNames = [];
+	for (let i = 0; i < objs.length; i++) {
+		objNames.push(objs[i].objName);
+	}
 
 	//Variables
 	let variables = [];
 	let varidx = 0;
-	if (typeof obj.variables !== 'undefined') {
-		for (let i = 0; i < obj.variables.length; i++) {
+	for (let i = 0; i < objs.length; i++) {
+		if (typeof objs[i].variables === 'undefined') continue;
+		for (let j = 0; j < objs[i].variables.length; j++) {
 			variables.push({
 				id: varidx,
-				name: obj.variables[i].name,
-				value: obj.variables[i].value,
-				owner: "Stage"
+				name: objs[i].variables[j].name,
+				value: objs[i].variables[j].value,
+				owner: i
 			});
 			varidx++;
-		}
-	}
-	if (hasChildren) {
-		for (let i = 0; i < obj.children.length; i++) {
-			let child = obj.children[i];
-			if (typeof child.variables === 'undefined') {
-				continue;
-			}
-			for (let j = 0; j < child.variables.length; j++) {
-				variables.push({
-					id: varidx,
-					name: child.variables[j].name,
-					value: child.variables[j].value,
-					owner: "n" + child.objName
-				});
-				varidx++;
-			}
 		}
 	}
 
 	//Lists
 	let lists = [];
 	let listidx = 0;
-	if (typeof obj.lists !== 'undefined') {
-		for (let i = 0; i < obj.lists.length; i++) {
+	for (let i = 0; i < objs.length; i++) {
+		if (typeof objs[i].lists === 'undefined') continue;
+		for (let j = 0; j < objs[i].lists.length; j++) {
 			lists.push({
 				id: listidx,
-				name: obj.lists[i].listName,
-				value: obj.lists[i].contents,
-				owner: "Stage"
+				name: objs[i].lists[j].listName,
+				value: objs[i].lists[j].contents,
+				owner: i
 			});
 			listidx++;
-		}
-	}
-	if (hasChildren) {
-		for (let i = 0; i < obj.children.length; i++) {
-			let child = obj.children[i];
-			if (typeof child.lists === 'undefined') {
-				continue;
-			}
-			for (let j = 0; j < child.lists.length; j++) {
-				lists.push({
-					id: listidx,
-					name: child.lists[j].listName,
-					value: child.lists[j].contents,
-					owner: "n" + child.objName
-				});
-				listidx++;
-			}
 		}
 	}
 
 	//Sounds
 	let sounds = [];
-	if (typeof obj.sounds !== 'undefined') {
-		for (let i = 0; i < obj.sounds.length; i++) {
-			sounds.push({owner: "Stage", obj: {
-				assetId: obj.sounds[i].md5.slice(0, obj.sounds[i].md5.lastIndexOf(".")),
-				data: obj.sounds[i].data,
-				dataFormat: obj.sounds[i].md5.slice(obj.sounds[i].md5.lastIndexOf(".") + 1),
-				format: obj.sounds[i].format,
-				md5ext: obj.sounds[i].md5,
-				name: obj.sounds[i].soundName,
-				rate: obj.sounds[i].rate,
-				sampleCount: obj.sounds[i].sampleCount
+	for (let i = 0; i < objs.length; i++) {
+		if (typeof objs[i].sounds === 'undefined') continue;
+		for (let j = 0; j < objs[i].sounds.length; j++) {
+			sounds.push({owner: i, obj:{
+				assetId: objs[i].sounds[j].md5.slice(0, objs[i].sounds[j].md5.lastIndexOf(".")),
+				data: objs[i].sounds[j].data,
+				dataFormat: objs[i].sounds[j].md5.slice(objs[i].sounds[j].md5.lastIndexOf(".") + 1),
+				format: objs[i].sounds[j].format,
+				md5ext: objs[i].sounds[j].md5,
+				name: objs[i].sounds[j].soundName,
+				rate: objs[i].sounds[j].rate,
+				sampleCount: objs[i].sounds[j].sampleCount
 			}});
-		}
-	}
-	if (hasChildren) {
-		for (let i = 0; i < obj.children.length; i++) {
-			let child = obj.children[i];
-			if (typeof child.sounds === 'undefined') {
-				continue; 
-			}
-			for (let j = 0; j < child.sounds.length; j++) {
-				sounds.push({owner: "n" + child.objName, obj:{
-					assetId: child.sounds[j].md5.slice(0, child.sounds[j].md5.lastIndexOf(".")),
-					data: child.sounds[j].data,
-					dataFormat: child.sounds[j].md5.slice(child.sounds[j].md5.lastIndexOf(".") + 1),
-					format: child.sounds[j].format,
-					md5ext: child.sounds[j].md5,
-					name: child.sounds[j].soundName,
-					rate: child.sounds[j].rate,
-					sampleCount: child.sounds[j].sampleCount
-				}});
-			}
 		}
 	}
 
@@ -247,7 +203,7 @@ function Scratch2toIR(obj) {
 			}
 		}
 	}
-	if (hasChildren) {
+	if (typeof obj.children !== 'undefined') {
 		for (let i = 0; i < obj.children.length; i++) {
 			let child = obj.children[i];
 			if (typeof child.objName === 'undefined') {
@@ -260,7 +216,7 @@ function Scratch2toIR(obj) {
 				draggable: child.isDraggable,
 				isStage: false,
 				layerOrder: child.indexInLibrary,
-				name: "n" + child.objName,
+				name: child.objName,
 				rotationStyle: child.rotationStyle,
 				size: 100 * child.scale,
 				visible: child.visible,
@@ -294,34 +250,15 @@ function Scratch2toIR(obj) {
 	//Scripts and Broadcasts
 	let scripts = [];
 	let broadcasts = new Set();
-	if (typeof obj.scripts !== 'undefined') {
-		for (let i = 0; i < obj.scripts.length; i++) {
-			if (!doesScriptDoAnything(obj.scripts[i][2])) {
-				continue;
-			}
+	for (let i = 0; i < objs.length; i++) {
+		if (typeof objs[i].scripts === 'undefined') continue;
+		for (let j = 0; j < objs[i].scripts.length; j++) {
+			if (!doesScriptDoAnything(objs[i].scripts[j][2])) continue;
 			scripts.push({
-				owner: "Stage",
-				script: setScratch3OpcodeScript(obj.scripts[i][2])
+				owner: i, 
+				script: setScratch3OpcodeScript(objs[i].scripts[j][2])
 			});
-			broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(obj.scripts[i][2]));
-		}
-	}
-	if (hasChildren) {
-		for (let i = 0; i < obj.children.length; i++) {
-			let child = obj.children[i];
-			if (typeof child.scripts === 'undefined') {
-				continue;
-			}
-			for (let j = 0; j < child.scripts.length; j++) {
-				if (!doesScriptDoAnything(child.scripts[j][2])) {
-					continue;
-				}
-				scripts.push({
-					owner: "n" + child.objName, 
-					script: setScratch3OpcodeScript(child.scripts[j][2])
-				});
-				broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(child.scripts[j][2]));
-			}
+			broadcasts = broadcasts.union(getScratch2ScriptBroadcasts(objs[i].scripts[j][2]));
 		}
 	}
 
@@ -335,186 +272,179 @@ function Scratch2toIR(obj) {
 
 	//Monitors
 	let monitors = [];
-	if (hasChildren) {
-		for (let i = 0; i < obj.children.length; i++) {
-			let child = obj.children[i];
-			if (typeof child.cmd !== 'undefined') {
-				let newMonitor = {};
-				switch (child.cmd) {
-					case "answer":
-						newMonitor = {
-							id: "answer",
-							opcode: "sensing_answer",
-							params: {},
-							value: ""
-						};
-						break;
-					case "backgroundIndex":
-						newMonitor = {
-							id: "backdropnumbername_number",
-							opcode: "looks_backdropnumbername",
-							params: {"NUMBER_NAME": "number"},
-							value: 0
-						};
-						break;
-					case "costumeIndex":
-						newMonitor = {
-							id: "_costumenumbername_number",
-							opcode: "looks_costumenumbername",
-							params: {"NUMBER_NAME": "number"},
-							value: 0
-						};
-						break;
-					case "getVar:":
-						let varid = 0;
-						for (let j = 0; j < variables.length; j++) {
-							if (variables[j].name !== child.param) {
-								continue;
-							}
-							if (variables[j].owner !== child.target) {
-								continue;
-							}
-							varid = j;
-							break;
+	for (let i = 0; i < objs.length; i++) {
+		if (typeof objs[i].cmd !== 'undefined') {
+			let newMonitor = {};
+			switch (objs[i].cmd) {
+				case "answer":
+					newMonitor = {
+						id: "answer",
+						opcode: "sensing_answer",
+						params: {},
+						value: ""
+					};
+					break;
+				case "backgroundIndex":
+					newMonitor = {
+						id: "backdropnumbername_number",
+						opcode: "looks_backdropnumbername",
+						params: {"NUMBER_NAME": "number"},
+						value: 0
+					};
+					break;
+				case "costumeIndex":
+					newMonitor = {
+						id: "_costumenumbername_number",
+						opcode: "looks_costumenumbername",
+						params: {"NUMBER_NAME": "number"},
+						value: 0
+					};
+					break;
+				case "getVar:":
+					let varid = 0;
+					for (let j = 0; j < variables.length; j++) {
+						if (variables[j].name !== objs[i].param) {
+							continue;
 						}
-						newMonitor = {
-							id: varid, 
-							opcode: "data_variable",
-							params: {VARIABLE: child.param},
-							value: variables[varid].value
-						};
-						break;
-					case "heading":
-						newMonitor = {
-							id: "_direction",
-							opcode: "motion_direction",
-							params: {},
-							value: 0
-						};
-						break;
-					case "scale":
-						newMonitor = {
-							id: "_size",
-							opcode: "looks_size",
-							params: {},
-							value: 0
-						};
-						break;
-					case "sceneName":
-						newMonitor = {
-							id: "backdropnumbername_name",
-							opcode: "looks_backdropnumbername",
-							params: {"NUMBER_NAME": "name"},
-							value: 0
-						};
-						break;
-					case "senseVideoMotion":
-						newMonitor = {
-							id: "helium_videomotion",
-							opcode: "videoSensing_videoOn",
-							params: {
-								TYPE: (child.param[0] === "d" ? "direction" : "motion"), 
-								THING: (child.param[child.param.length - 2] === "g" ? "Stage" : child.target)
-							},
-							value: 0
-						};
-						break;
-					case "soundLevel":
-						newMonitor = {
-							id: "loudness",
-							opcode: "sensing_loudness",
-							params: {},
-							value: 0
-						};
-						break;
-					case "tempo":
-						newMonitor = {
-							id: "music_getTempo",
-							opcode: "music_getTempo",
-							params: {},
-							value: 60
-						};
-						break;
-					case "timeAndDate":
-						newMonitor = {
-							id: "current_" + child.param.replace(" ", ""),
-							opcode: "sensing_current",
-							params: {CURRENTMENU: child.param.replace(" ", "").toUpperCase()},
-							value: 0
-						};
-						break;
-					case "timer":
-						newMonitor = {
-							id: "timer",
-							opcode: "sensing_timer",
-							params: {},
-							value: 0
-						};
-						break;
-					case "volume":
-						newMonitor = {
-							id: "_volume",
-							opcode: "sound_volume",
-							params: {},
-							value: 0
-						};
-						break;
-					case "xpos":
-						newMonitor = {
-							id: "_xposition",
-							opcode: "motion_xposition",
-							params: {},
-							value: 0
-						};
-						break;
-					case "ypos":
-						newMonitor = {
-							id: "_yposition",
-							opcode: "motion_yposition",
-							params: {},
-							value: 0
-						};
-						break;
-					default:
-						console.error("Unrecognized monitor type: " + child.cmd);
-				}
-				newMonitor.spriteName = child.target;
-				if (child.target !== "Stage") {
-					newMonitor.spriteName = "n" + child.target;
-				}
-				newMonitor.mode = ["default", "large", "slider"][child.mode-1];
-				newMonitor.x = child.x;
-				newMonitor.y = child.y;
-				newMonitor.visible = child.visible;
-				newMonitor.sliderMin = child.sliderMin;
-				newMonitor.sliderMax = child.sliderMax;
-				newMonitor.isDiscrete = child.isDiscrete;
-				newMonitor.width = 0;
-				newMonitor.height = 0;
-				monitors.push(newMonitor);
-			}
-			if (typeof child.listName !== 'undefined') {
-				let id = 0;
-				for (let j = 0; j < lists.length; j++) {
-					id = j;
-					if (lists[j].name === child.listName) {
+						if (variables[j].owner !== objs[i].target) {
+							continue;
+						}
+						varid = j;
 						break;
 					}
-				}
-				monitors.push({
-					id: id,
-					mode: "list",
-					opcode: "data_listcontents",
-					params: {LIST: child.listName},
-					spriteName: (lists[id].owner === "Stage") ? "Stage" : ("n" + lists[id].owner),
-					x: child.x,
-					y: child.y,
-					width: child.width,
-					height: child.height,
-					visible: child.visible,
-					value: child.contents
-				});
+					newMonitor = {
+						id: varid, 
+						opcode: "data_variable",
+						params: {VARIABLE: objs[i].param},
+						value: variables[varid].value
+					};
+					break;
+				case "heading":
+					newMonitor = {
+						id: "_direction",
+						opcode: "motion_direction",
+						params: {},
+						value: 0
+					};
+					break;
+				case "scale":
+					newMonitor = {
+						id: "_size",
+						opcode: "looks_size",
+						params: {},
+						value: 0
+					};
+					break;
+				case "sceneName":
+					newMonitor = {
+						id: "backdropnumbername_name",
+						opcode: "looks_backdropnumbername",
+						params: {"NUMBER_NAME": "name"},
+						value: 0
+					};
+					break;
+				case "senseVideoMotion":
+					newMonitor = {
+						id: "helium_videomotion",
+						opcode: "videoSensing_videoOn",
+						params: {
+							TYPE: (objs[i].param[0] === "d" ? "direction" : "motion"), 
+							THING: (objs[i].param[objs[i].param.length - 2] === "g" ? "Stage" : objs[i].target)
+						},
+						value: 0
+					};
+					break;
+				case "soundLevel":
+					newMonitor = {
+						id: "loudness",
+						opcode: "sensing_loudness",
+						params: {},
+						value: 0
+					};
+					break;
+				case "tempo":
+					newMonitor = {
+						id: "music_getTempo",
+						opcode: "music_getTempo",
+						params: {},
+						value: 60
+					};
+					break;
+				case "timeAndDate":
+					newMonitor = {
+						id: "current_" + objs[i].param.replace(" ", ""),
+						opcode: "sensing_current",
+						params: {CURRENTMENU: objs[i].param.replace(" ", "").toUpperCase()},
+						value: 0
+					};
+					break;
+				case "timer":
+					newMonitor = {
+						id: "timer",
+						opcode: "sensing_timer",
+						params: {},
+						value: 0
+					};
+					break;
+				case "volume":
+					newMonitor = {
+						id: "_volume",
+						opcode: "sound_volume",
+						params: {},
+						value: 0
+					};
+					break;
+				case "xpos":
+					newMonitor = {
+						id: "_xposition",
+						opcode: "motion_xposition",
+						params: {},
+						value: 0
+					};
+					break;
+				case "ypos":
+					newMonitor = {
+						id: "_yposition",
+						opcode: "motion_yposition",
+						params: {},
+						value: 0
+					};
+					break;
+				default:
+					console.error("Unrecognized monitor type: " + objs[i].cmd);
 			}
+			newMonitor.spriteName = i;
+			newMonitor.mode = ["default", "large", "slider"][objs[i].mode-1];
+			newMonitor.x = objs[i].x;
+			newMonitor.y = objs[i].y;
+			newMonitor.visible = objs[i].visible;
+			newMonitor.sliderMin = objs[i].sliderMin;
+			newMonitor.sliderMax = objs[i].sliderMax;
+			newMonitor.isDiscrete = objs[i].isDiscrete;
+			newMonitor.width = 0;
+			newMonitor.height = 0;
+			monitors.push(newMonitor);
+		}
+		if (typeof objs[i].listName !== 'undefined') {
+			let j = 0;
+			for (; j < lists.length; j++) {
+				if (lists[j].name === objs[i].listName) {
+					break;
+				}
+			}
+			monitors.push({
+				id: j,
+				mode: "list",
+				opcode: "data_listcontents",
+				params: {LIST: objs[i].listName},
+				spriteName: lists[j].owner,
+				x: objs[i].x,
+				y: objs[i].y,
+				width: objs[i].width,
+				height: objs[i].height,
+				visible: objs[i].visible,
+				value: objs[i].contents
+			});
 		}
 	}
 
@@ -801,9 +731,6 @@ function Scratch3toIR(obj) {
 		let target = obj.targets[i];
 		let costumes = [];
 		//console.log(target);
-		if (!target.isStage) {
-			target.name = "n" + target.name;
-		}
 
 		sprites.push({
 			isStage: target.isStage,
@@ -871,16 +798,23 @@ function Scratch3toIR(obj) {
 		}
 	}
 
+	let stageIdx = 0;
+	for (; stageIdx < sprites.length; stageIdx++) {
+		if (sprites[stageIdx].isStage) break;
+	}
+
 	let monitors = [];
 	for (let i = 0; i < obj.monitors.length; i++) {
 		monitors.push(obj.monitors[i]);
 		if (monitors[i].spriteName === null) {
-			monitors[i].spriteName = "Stage";
+			monitors[i].spriteName = stageIdx;
 		} else {
-			monitors[i].spriteName = "n" + monitors[i].spriteName;
-		}
-		if (monitors[i].opcode === "data_variable") {
-			monitors[i].params.VARIABLE = monitors[i].params.VARIABLE;
+			let k = 0;
+			for (; k < sprites.length; k++) {
+				if (sprites[k].isStage) continue;
+				if (sprites[k].name == monitors[i].spriteName) break;
+			}
+			monitors[i].spriteName = k;
 		}
 	}
 	

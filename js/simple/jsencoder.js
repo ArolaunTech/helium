@@ -8,8 +8,11 @@ class SimpleIRtoJS {
 		this.ir = newIR;
 	}
 
-	createJSFromScript(script) {
+	createJSFromScript(script, id) {
 		//Turns a single script's blocks into javascript code.
+		let out = `function* script${id}() {`;
+		console.log(script)
+		return out;
 	}
 
 	createJS() {
@@ -18,7 +21,14 @@ class SimpleIRtoJS {
 		//Convert each script to javascript
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			let script = this.ir.scripts[i].script;
-			console.log(structuredClone(script), createJSFromScript(script));
+			let opcode = script[0][0];
+			let warp = false;
+			//console.log(script[0])
+			if ((opcode === "procedures_definition") && script[0][script[0].length-1].warp) {
+				warp = true;
+			}
+			this.ir.scripts[i].warp = warp;
+			console.log(this.createJSFromScript(this.ir.scripts[i], i));
 		}
 
 		return "";
