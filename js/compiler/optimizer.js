@@ -230,6 +230,10 @@ class Optimizer {
 					["control_wait", this.ir.sounds[i].obj.sampleCount/this.ir.sounds[i].obj.rate]
 				];
 			}
+			return [
+				["sound_play", newBlock[1]],
+				["control_wait", ["helium_soundlength", newBlock[1]]]
+			];
 		}
 		return [newBlock];
 	}
@@ -1181,45 +1185,16 @@ class Optimizer {
 				], owner);
 			}
 			case "data_insertatlist": {
-				let iteration = this.addNewTempVar();
 				let list = this.addNewTempVar();
 
-				this.ir.scripts.push({owner: owner, script: [
-					[
-						"data_replaceitemoflist", 
-						['data_variable', iteration],
-						["data_variable", list],
-						[
-							"data_itemoflist",
-							["operator_subtract", ["data_variable", iteration], 1],
-							['data_variable', list]
-						]
-					],
-					["data_changevariableby", iteration, -1]
-				]});
-
 				return this.simplifyScript([
-					["data_setvariableto", list, block[3]],
-					[
-						"data_addtolist", //Duplicate last item of list
-						[
-							"data_itemoflist",
-							["data_lengthoflist", ["data_variable", list]],
-							["data_variable", list]
-						],
-						["data_variable", list]
-					],
-					[
-						"data_setvariableto", //Loop to set list elements
-						iteration, 
-						["operator_subtract", ["data_lengthoflist", ["data_variable", list], 1]]
-					],
-					[
-						"control_while",
-						["operator_gt", ["data_variable", iteration], block[2]],
-						{script: this.ir.scripts.length - 1}
-					],
-					["data_replaceitemoflist", block[2], ["data_variable", list], block[1]]
+					["procedures_call", block[1], block[2], block[3], {
+						argDefaults: [0, 0, ""],
+						argNames: ["item", "index", "list"],
+						owner: owner,
+						proccode: "data_insertatlist %s %s %s",
+						warp: true
+					}]
 				], owner);
 			}
 			default:
@@ -1244,9 +1219,9 @@ class Optimizer {
 			opcodes = [block[0]];
 		}
 
-		//if (block[0] === "procedures_definition") {
-		//	console.log(block);
-		//}
+		if (block[0] === "procedures_call") {
+			console.log(block);
+		}
 
 		for (let i = 1; i < block.length; i++) {
 			if (Array.isArray(block[i])) {
@@ -1385,8 +1360,68 @@ class Optimizer {
 			);
 		}
 
+		//Add insert_atlist dependency
+		for (let i = 0; i < this.ir.sprites.length; i++) {
+			let iteration = this.addNewTempVar();
+
+			this.ir.scripts.push({owner: i, script: [
+				[
+					"data_replaceitemoflist", 
+					['data_variable', iteration],
+					["argument_reporter_string_number", "list"],
+					[
+						"data_itemoflist",
+						["operator_subtract", ["data_variable", iteration], 1],
+						["argument_reporter_string_number", "list"]
+					]
+				],
+				["data_changevariableby", iteration, -1]
+			]});
+	
+			this.ir.scripts.push({owner: i, script: [
+				[
+					"procedures_definition",
+					["argument_reporter_string_number", "item"],
+					["argument_reporter_string_number", "index"],
+					["argument_reporter_string_number", "list"],
+					{
+						argDefaults: [0, 0, ""],
+						argNames: ["item", "index", "list"],
+						owner: i,
+						proccode: "data_insertatlist %s %s %s",
+						warp: true
+					}
+				],
+				[
+					"data_addtolist", //Duplicate last item of list
+					[
+						"data_itemoflist",
+						["data_lengthoflist", ["argument_reporter_string_number", "list"]],
+						["argument_reporter_string_number", "list"]
+					],
+					["argument_reporter_string_number", "list"]
+				],
+				[
+					"data_setvariableto", //Loop to set list elements
+					iteration, 
+					["operator_subtract", ["data_lengthoflist", ["argument_reporter_string_number", "list"], 1]]
+				],
+				[
+					"control_while",
+					["operator_gt", ["data_variable", iteration], ["argument_reporter_string_number", "index"]],
+					{script: this.ir.scripts.length - 1}
+				],
+				[
+					"data_replaceitemoflist", 
+					["argument_reporter_string_number", "index"], 
+					["argument_reporter_string_number", "list"], 
+					["argument_reporter_string_number", "item"]
+				]
+			]});
+		}
+
 		//Remove wait blocks
-		//console.log(JSON.stringify(ir.scripts));
+
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}
@@ -1398,18 +1433,6 @@ class Optimizer {
 		opcodes = [...new Set(opcodes)];
 		console.log(JSON.stringify(opcodes), opcodes.length);
 		console.log(structuredClone(this.ir.scripts));
-
-		//TEMPORARY PRINT
-		/*for (let i = 0; i < this.ir.scripts.length; i++) {
-			let script = this.ir.scripts[i].script;
-			for (let j = 0; j < script.length; j++) {
-				let opcode = script[j][0];
-				if (opcode !== 'data_setvariableto') {
-					continue;
-				}
-				console.log(i, j, script[j]);
-			}
-		}*/
 
 		//SSA (not really)
 		this.ir.ssa = [];

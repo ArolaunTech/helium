@@ -152,3 +152,6 @@ This document is intended as a guide to the various internal blocks used inside 
 
  - **helium_@:** <br/>
    Defines some @ computation.
+
+ - **helium_soundlength:** <br/>
+   Returns the length of a sound.

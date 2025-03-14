@@ -471,54 +471,14 @@ function cleanScratch3Block(obj, owner, id) {
 		opcode: obj.opcode,
 		parent: obj.parent,
 		topLevel: obj.topLevel,
+		//Only for procedures_ blocks
 		warp: true,
 		proccode: "",
 		argDefaults: [],
-		argNames: []
+		argNames: [],
+		//Only for procedures_call
+		argIds: [],
 	};
-
-	let inputs = [];
-	for (let prop in out.inputs) {
-		if (out.inputs.hasOwnProperty(prop)) {
-			if (Array.isArray(out.inputs[prop][1])) {
-				//Beware of enum blocks (12 = variable, 13 = list)
-				let enumIdx = out.inputs[prop][1][0];
-				if (enumIdx === 12) {
-					inputs.push({
-						id: prop, 
-						isBlock: false, //Not true, this is just an indicator to keep this value here
-						value: [
-							"data_variable",
-							out.inputs[prop][1][1]
-						]
-					});
-				} else if (enumIdx === 13) {
-					inputs.push({
-						id: prop, 
-						isBlock: false, 
-						value: [
-							"data_listcontents",
-							out.inputs[prop][1][1]
-						]
-					});
-				} else {
-					inputs.push({id: prop, isBlock: false, value: out.inputs[prop][1][1]});
-				}
-			} else {
-				inputs.push({id: prop, isBlock: (typeof out.inputs[prop][1] === "string"), value: out.inputs[prop][1]});
-			}
-		}
-	}
-	out.inputs = inputs;
-	//console.log(out.inputs);
-
-	let fields = [];
-	for (let prop in out.fields) {
-		if (out.fields.hasOwnProperty(prop)) {
-			fields.push({id: prop, value: out.fields[prop][0], fieldID: out.fields[prop][1]});
-		}
-	}
-	out.fields = fields;
 
 	//Mutations
 	if (typeof obj.mutation !== 'undefined') {
@@ -535,7 +495,74 @@ function cleanScratch3Block(obj, owner, id) {
 		if (typeof mutation.argumentnames !== 'undefined') {
 			out.argNames = JSON.parse(mutation.argumentnames);
 		}
+		if (typeof mutation.argumentids !== 'undefined') {
+			out.argIds = JSON.parse(mutation.argumentids);
+		}
 	}
+
+	//if (obj.opcode === 'procedures_call') console.log(structuredClone(obj));
+
+	let inputs = [];
+	for (let prop in out.inputs) {
+		if (!out.inputs.hasOwnProperty(prop)) continue;
+
+		let input = {};
+		if (Array.isArray(out.inputs[prop][1])) {
+			//Beware of enum blocks (12 = variable, 13 = list)
+			let enumIdx = out.inputs[prop][1][0];
+			if (enumIdx === 12) {
+				input = {
+					id: prop, 
+					isBlock: false, //Not true, this is just an indicator to keep this value here
+					value: [
+						"data_variable",
+						out.inputs[prop][1][1]
+					]
+				};
+			} else if (enumIdx === 13) {
+				input = {
+					id: prop, 
+					isBlock: false, 
+					value: [
+						"data_listcontents",
+						out.inputs[prop][1][1]
+					]
+				};
+			} else {
+				input = {id: prop, isBlock: false, value: out.inputs[prop][1][1]};
+			}
+		} else {
+			input = {id: prop, isBlock: (typeof out.inputs[prop][1] === "string"), value: out.inputs[prop][1]};
+		}
+
+		inputs.push(input);
+	}
+	if (obj.opcode === 'procedures_call') {
+		//Add missing inputs into procedures_call. These will be ordered properly in the createScratch3Block function.
+		let addedIds = new Set();
+		for (let i = 0; i < inputs.length; i++) {
+			addedIds.add(inputs[i].id);
+		}
+		for (let i = 0; i < out.argIds.length; i++) {
+			if (addedIds.has(out.argIds[i])) continue; //Don't duplicate inputs
+			inputs.push({
+				id: out.argIds[i],
+				isBlock: false,
+				value: "" //This may change in the future
+			});
+		}
+	}
+
+	out.inputs = inputs;
+	//console.log(out.inputs);
+
+	let fields = [];
+	for (let prop in out.fields) {
+		if (out.fields.hasOwnProperty(prop)) {
+			fields.push({id: prop, value: out.fields[prop][0], fieldID: out.fields[prop][1]});
+		}
+	}
+	out.fields = fields;
 
 	return out;
 }
@@ -625,31 +652,46 @@ function createScratch3Block(block, blocks, blockmap) {
 			newBlock.push(block.fields[i].value);
 		}
 	}	
-	for (let i = 0; i < block.inputs.length; i++) {
-		if (inputsUsed[i]) {
-			continue;
+
+	if (block.opcode === 'procedures_call') {
+		//Order the inputs to a procedures_call block
+		for (let i = 0; i < block.argIds.length; i++) {
+			for (let j = 0; j < block.inputs.length; j++) {
+				if (block.inputs[j].id !== block.argIds[i]) continue;
+
+				if (block.inputs[j].isBlock) {
+					let inputBlock = blocks[blockmap.get(block.inputs[j].value)];
+					let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
+					if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
+						inputScript = inputScript[0];
+					}
+					newBlock.push(inputScript);
+				} else {
+					newBlock.push(block.inputs[j].value);
+				}
+			}
 		}
-		if (block.inputs[i].isBlock) {
-			let inputBlock = blocks[blockmap.get(block.inputs[i].value)];
-			let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
-			if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
-				inputScript = inputScript[0];
-			}// else {
-			//	console.log(JSON.stringify(block.inputs[i]));
-			//	console.log(JSON.stringify(inputBlock));
-			//	console.log(JSON.stringify(inputScript));
-			//	console.log(Array.isArray(inputScript[0]));
-			//	console.log(reporters.includes(inputScript[0][0]));
-			//}
-			newBlock.push(inputScript);
-		} else {
-			newBlock.push(block.inputs[i].value);
+	} else {
+		for (let i = 0; i < block.inputs.length; i++) {
+			if (inputsUsed[i]) {
+				continue;
+			}
+			if (block.inputs[i].isBlock) {
+				let inputBlock = blocks[blockmap.get(block.inputs[i].value)];
+				let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
+				if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
+					inputScript = inputScript[0];
+				}
+				newBlock.push(inputScript);
+			} else {
+				newBlock.push(block.inputs[i].value);
+			}
 		}
 	}
-	
 
 	//Procedures
 	if ((block.opcode === "procedures_call") || (block.opcode === "procedures_prototype")) {
+		//console.log(structuredClone(block), structuredClone(newBlock));
 		newBlock.push({
 			warp: block.warp,
 			proccode: block.proccode,
