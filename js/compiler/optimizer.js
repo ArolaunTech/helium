@@ -1551,7 +1551,6 @@ class Optimizer {
 					"data_addtolist",
 					"data_deleteoflist",
 					"data_deletealloflist",
-					"data_insertatlist",
 					"data_replaceitemoflist",
 				].includes(opcode)) {
 					let listIndex = -1;
@@ -1563,9 +1562,6 @@ class Optimizer {
 							break;
 						case "data_deletealloflist":
 							listIndex = script[j][1].val;
-							break;
-						case "data_insertatlist":
-							listIndex = script[j][3].val;
 					}
 					listIndex += numIrVariables;
 
@@ -1605,16 +1601,6 @@ class Optimizer {
 							break;
 						case "data_deletealloflist":
 							newBlock.push([]);
-							break;
-						case "data_insertatlist":
-							newBlock.push(
-								[
-									"helium_insert",
-									["data_variable", listIndex],
-									script[j][2],
-									script[j][1]
-								]
-							);
 					}
 
 					newBlock.push(false);
