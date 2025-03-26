@@ -1184,19 +1184,6 @@ class Optimizer {
 					]
 				], owner);
 			}
-			case "data_insertatlist": {
-				let list = this.addNewTempVar();
-
-				return this.simplifyScript([
-					["procedures_call", block[1], block[2], block[3], {
-						argDefaults: [0, 0, ""],
-						argNames: ["item", "index", "list"],
-						owner: owner,
-						proccode: "data_insertatlist %s %s %s",
-						warp: true
-					}]
-				], owner);
-			}
 			default:
 				return [block];
 		}
@@ -1285,6 +1272,9 @@ class Optimizer {
 	replaceVariableCallsBlock(block, variations) {
 		if (block[0] === 'data_variable') {
 			//Replace with variation
+			if (variations[block[1]] === -1) {
+				return block;
+			}
 			return [
 				"helium_getvariation",
 				block[1],
@@ -1360,68 +1350,7 @@ class Optimizer {
 			);
 		}
 
-		//Add insert_atlist dependency
-		for (let i = 0; i < this.ir.sprites.length; i++) {
-			let iteration = this.addNewTempVar();
-
-			this.ir.scripts.push({owner: i, script: [
-				[
-					"data_replaceitemoflist", 
-					['data_variable', iteration],
-					["argument_reporter_string_number", "list"],
-					[
-						"data_itemoflist",
-						["operator_subtract", ["data_variable", iteration], 1],
-						["argument_reporter_string_number", "list"]
-					]
-				],
-				["data_changevariableby", iteration, -1]
-			]});
-	
-			this.ir.scripts.push({owner: i, script: [
-				[
-					"procedures_definition",
-					["argument_reporter_string_number", "item"],
-					["argument_reporter_string_number", "index"],
-					["argument_reporter_string_number", "list"],
-					{
-						argDefaults: [0, 0, ""],
-						argNames: ["item", "index", "list"],
-						owner: i,
-						proccode: "data_insertatlist %s %s %s",
-						warp: true
-					}
-				],
-				[
-					"data_addtolist", //Duplicate last item of list
-					[
-						"data_itemoflist",
-						["data_lengthoflist", ["argument_reporter_string_number", "list"]],
-						["argument_reporter_string_number", "list"]
-					],
-					["argument_reporter_string_number", "list"]
-				],
-				[
-					"data_setvariableto", //Loop to set list elements
-					iteration, 
-					["operator_subtract", ["data_lengthoflist", ["argument_reporter_string_number", "list"], 1]]
-				],
-				[
-					"control_while",
-					["operator_gt", ["data_variable", iteration], ["argument_reporter_string_number", "index"]],
-					{script: this.ir.scripts.length - 1}
-				],
-				[
-					"data_replaceitemoflist", 
-					["argument_reporter_string_number", "index"], 
-					["argument_reporter_string_number", "list"], 
-					["argument_reporter_string_number", "item"]
-				]
-			]});
-		}
-
 		//Remove wait blocks
-
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}
@@ -1796,8 +1725,8 @@ class Optimizer {
 			let variableSetters = [];
 			for (let j = 0; j < totalVariables; j++) variableSetters.push(-1);
 			for (let j = 0; j < script.length; j++) { //Replace data_variable with variations
-				if (script[j][0] === 'helium_variation') variableSetters[script[j][1][0]] = script[j][1][1];
 				this.ir.ssa[i][j] = this.replaceVariableCallsBlock(script[j], variableSetters);
+				if (script[j][0] === 'helium_variation') variableSetters[script[j][1][0]] = script[j][1][1];
 
 				//console.log(variableSetters);
 			}
@@ -1807,7 +1736,7 @@ class Optimizer {
 				let opcode = script[j][0];
 				if (opcode !== 'helium_variation') continue;
 
-				//console.log(script[j], opcode);
+				console.log(script[j], opcode);
 
 				let insert = ["helium_@", script[j][1]];
 				if (script[j][2][0] === 'helium_phi') {
