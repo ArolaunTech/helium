@@ -1275,11 +1275,7 @@ class Optimizer {
 			if (variations[block[1]] === -1) {
 				return block;
 			}
-			return [
-				"helium_getvariation",
-				block[1],
-				variations[block[1]]
-			];
+			return {type: "var", val: variations[block[1]]};
 		}
 
 		if (block[0] === 'helium_updatevar') {
@@ -1419,7 +1415,53 @@ class Optimizer {
 		}
 		console.log(structuredClone(this.ir.ssa));
 
-		
+		//Turn variables into values
+		let variations = [];
+		let totalVariables = this.ir.variables.length + this.ir.lists.length;
+		console.log(totalVariables);
+
+		for (let i = 0; i < totalVariables; i++) variations.push(-1);
+		console.log(variations);
+
+		for (let i = 0; i < this.ir.ssa.length; i++) {
+			for (let j = 0; j < this.ir.ssa[i].length; j++) {
+				//Replace variable accesses with variations
+				this.ir.ssa[i][j] = this.replaceVariableCallsBlock(this.ir.ssa[i][j], variations);
+				
+				let block = this.ir.ssa[i][j];
+				let opcode = block[0]
+
+				let newBlocks = [];
+				switch (opcode) {
+					case 'helium_start':
+						//Set the variations to variable values
+						newBlocks.push(['helium_start']);
+
+						for (let k = 0; k < totalVariables; k++) {
+							variations[k] = this.numVars;
+							newBlocks.push(["helium_val", this.numVars, ["data_variable", k], true]);
+
+							this.numVars++;
+						}
+						break;
+					case 'data_setvariableto':
+
+					case 'data_deletealloflist':
+
+					case 'data_deleteoflist':
+
+					case 'data_addtolist':
+
+					case 'data_insertatlist':
+
+					case 'data_replaceitemoflist':
+
+					default:
+						console.log(i, j, block, opcode);
+						continue;
+				}
+			}
+		}
 
 		//Optimization passes
 		for (let i = 0; i < 10; i++) {
