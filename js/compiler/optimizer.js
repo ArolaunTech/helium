@@ -135,28 +135,6 @@ class Optimizer {
 			case "data_variable": {
 				return [opcode, this.findVar(newBlock[1], owner, this.ir.variables)];
 			}
-			case "data_listcontents":
-			case "data_lengthoflist":
-			case "data_deletealloflist":
-			case "data_showlist":
-			case "data_hidelist": {
-				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists)];
-			}
-			case "data_addtolist":
-			case "data_itemoflist":
-			case "data_deleteoflist": {
-				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists)];
-			}
-			case "data_insertatlist": {
-				return [opcode, newBlock[1], newBlock[2], this.findVar(newBlock[3], owner, this.ir.lists)];
-			}
-			case "data_replaceitemoflist": {
-				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists), newBlock[3]];
-			}
-			case "data_itemnumoflist":
-			case "data_listcontainsitem": {
-				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists), newBlock[2]];
-			}
 		}
 		return newBlock;
 	}
@@ -165,6 +143,53 @@ class Optimizer {
 		let newScript = [];
 		for (let i = 0; i < script.length; i++) {
 			newScript.push(this.replaceVariableNamesBlock(script[i], owner));
+		}
+		return newScript;
+	}
+
+	replaceListNamesBlock(block, owner) {
+		let opcode = block[0];
+		let newBlock = [opcode];
+
+		for (let i = 1; i < block.length; i++) {
+			if (Array.isArray(block[i])) {
+				newBlock.push(this.replaceListNamesBlock(block[i], owner));
+			} else {
+				newBlock.push(block[i]);
+			}
+		}
+
+		switch (opcode) {
+			case "data_listcontents":
+			case "data_lengthoflist":
+			case "data_deletealloflist":
+			case "data_showlist":
+			case "data_hidelist": {
+				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists) + this.ir.variables.length];
+			}
+			case "data_addtolist":
+			case "data_itemoflist":
+			case "data_deleteoflist": {
+				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists) + this.ir.variables.length];
+			}
+			case "data_insertatlist": {
+				return [opcode, newBlock[1], newBlock[2], this.findVar(newBlock[3], owner, this.ir.lists) + this.ir.variables.length];
+			}
+			case "data_replaceitemoflist": {
+				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists) + this.ir.variables.length, newBlock[3]];
+			}
+			case "data_itemnumoflist":
+			case "data_listcontainsitem": {
+				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists) + this.ir.variables.length, newBlock[2]];
+			}
+		}
+		return newBlock;
+	}
+
+	replaceListNames(script, owner) {
+		let newScript = [];
+		for (let i = 0; i < script.length; i++) {
+			newScript.push(this.replaceListNamesBlock(script[i], owner));
 		}
 		return newScript;
 	}
@@ -1359,6 +1384,12 @@ class Optimizer {
 		console.log(JSON.stringify(opcodes), opcodes.length);
 		console.log(structuredClone(this.ir.scripts));
 
+		//Replace list names with IDs
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			let script = this.ir.scripts[i].script;
+			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
+		}
+
 		//SSA (not really)
 		this.ir.ssa = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1418,15 +1449,14 @@ class Optimizer {
 		//Turn variables into values
 		let variations = [];
 		let totalVariables = this.ir.variables.length + this.ir.lists.length;
-		console.log(totalVariables);
-
 		for (let i = 0; i < totalVariables; i++) variations.push(-1);
-		console.log(variations);
 
 		for (let i = 0; i < this.ir.ssa.length; i++) {
 			for (let j = 0; j < this.ir.ssa[i].length; j++) {
 				//Replace variable accesses with variations
-				this.ir.ssa[i][j] = this.replaceVariableCallsBlock(this.ir.ssa[i][j], variations);
+				if ((this.ir.ssa[i][j][0] !== 'helium_val') || (!this.ir.ssa[i][j][3])) {
+					this.ir.ssa[i][j] = this.replaceVariableCallsBlock(this.ir.ssa[i][j], variations);
+				}
 				
 				let block = this.ir.ssa[i][j];
 				let opcode = block[0]
@@ -1434,7 +1464,7 @@ class Optimizer {
 				let newBlocks = [];
 				switch (opcode) {
 					case 'helium_start':
-						//Set the variations to variable values
+						//Set the values to variable values
 						newBlocks.push(['helium_start']);
 
 						for (let k = 0; k < totalVariables; k++) {
@@ -1445,8 +1475,17 @@ class Optimizer {
 						}
 						break;
 					case 'data_setvariableto':
+						//Create a new value
+						let setVariable = block[1].val;
+						variations[setVariable] = this.numVars;
 
+						newBlocks.push(['helium_val', this.numVars, block[2], false]);
+
+						this.numVars++;
+
+						break;
 					case 'data_deletealloflist':
+						console.log(i, j, block, opcode);
 
 					case 'data_deleteoflist':
 
@@ -1456,9 +1495,6 @@ class Optimizer {
 
 					case 'data_replaceitemoflist':
 
-					default:
-						console.log(i, j, block, opcode);
-						continue;
 				}
 			}
 		}
