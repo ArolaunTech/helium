@@ -1476,26 +1476,81 @@ class Optimizer {
 						break;
 					case 'data_setvariableto':
 						//Create a new value
-						let setVariable = block[1].val;
-						variations[setVariable] = this.numVars;
+						variations[block[1].val] = this.numVars;
 
 						newBlocks.push(['helium_val', this.numVars, block[2], false]);
 
 						this.numVars++;
-
 						break;
 					case 'data_deletealloflist':
-						console.log(i, j, block, opcode);
+						//New value of []
+						variations[block[1].val] = this.numVars;
 
+						newBlocks.push(['helium_val', this.numVars, {type: 'value', val: []}, false]);
+
+						this.numVars++;
+						break;
 					case 'data_deleteoflist':
+						//New value of list - element
+						variations[block[2].val] = this.numVars + 1;
 
+						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[2].val], false]);
+						newBlocks.push([
+							'helium_val', 
+							this.numVars + 1, 
+							['helium_listspliceout', {type: 'var', val: this.numVars}, block[1]], 
+							false
+						]);
+
+						this.numVars += 2;
+						break;
 					case 'data_addtolist':
+						//New value of list + element
+						variations[block[2].val] = this.numVars + 1;
 
+						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[2].val], false]);
+						newBlocks.push([
+							'helium_val', 
+							this.numVars + 1, 
+							['helium_listadd', {type: 'var', val: this.numVars}, block[1]], 
+							false
+						]);
+
+						this.numVars += 2;
+						break;
 					case 'data_insertatlist':
+						//New value of list + inserted element
+						variations[block[3].val] = this.numVars + 1;
 
+						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[3].val], false]);
+						newBlocks.push([
+							'helium_val', 
+							this.numVars + 1, 
+							['helium_listinsertatindex', {type: 'var', val: this.numVars}, block[1], block[2]], 
+							false
+						]);
+
+						this.numVars += 2;
+						break;
 					case 'data_replaceitemoflist':
+						//New value of list + changed element
+						variations[block[2].val] = this.numVars + 1;
 
+						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[2].val], false]);
+						newBlocks.push([
+							'helium_val', 
+							this.numVars + 1, 
+							['helium_listreplaceatindex', {type: 'var', val: this.numVars}, block[3], block[1]], 
+							false
+						]);
+
+						this.numVars += 2;
+						break;
+						//console.log(i, j, block, opcode);
+					default:
+						continue;
 				}
+				console.log(newBlocks);
 			}
 		}
 
