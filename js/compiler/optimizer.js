@@ -1297,10 +1297,11 @@ class Optimizer {
 	replaceVariableCallsBlock(block, variations) {
 		if (block[0] === 'data_variable') {
 			//Replace with variation
-			if (variations[block[1]] === -1) {
+			if (variations[block[1].val] === -1) {
 				return block;
 			}
-			return {type: "var", val: variations[block[1]]};
+			//console.log(variations, block[1], variations[block[1].val]);
+			return {type: "var", val: variations[block[1].val]};
 		}
 
 		if (block[0] === 'helium_updatevar') {
@@ -1320,6 +1321,10 @@ class Optimizer {
 			}
 		}
 		return newBlock;
+	}
+
+	optimizeBasicBlock(script) {
+
 	}
 
 	optimizeIR() {
@@ -1550,13 +1555,19 @@ class Optimizer {
 					default:
 						continue;
 				}
-				console.log(newBlocks);
+				//console.log(newBlocks);
+				this.ir.ssa[i].splice(j, 1, ...newBlocks);
 			}
 		}
 
 		//Optimization passes
 		for (let i = 0; i < 10; i++) {
-
+			//Optimize basic blocks
+			for (let j = 0; j < this.ir.ssa.length; j++) {
+				let script = this.ir.ssa[j];
+				if (!doesScriptDoAnything(script)) continue;
+				console.log(j, script);
+			}
 		}
 
 		return this.ir;
