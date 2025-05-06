@@ -1566,7 +1566,25 @@ class Optimizer {
 			for (let j = 0; j < this.ir.ssa.length; j++) {
 				let script = this.ir.ssa[j];
 				if (!doesScriptDoAnything(script)) continue;
-				console.log(j, script);
+
+				let basicBlock = [];
+				for (let k = 0; k < script.length; k++) {
+					let block = script[k];
+					let opcode = block[0];
+
+					//console.log(j, k, block);
+
+					switch (opcode) {
+						case "helium_start":
+							basicBlock = [];
+							break;
+						case "helium_end":
+							console.log(structuredClone(basicBlock));
+							break;
+						default:
+							basicBlock.push(block);
+					}
+				}
 			}
 		}
 
