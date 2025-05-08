@@ -1324,7 +1324,55 @@ class Optimizer {
 	}
 
 	optimizeBasicBlock(script) {
+		//console.log(script);
 
+		//Compile-time evaluation
+		for (let i = 0; i < script.length; i++) {
+			let block = script[i];
+			let opcode = block[0];
+
+			if (opcode !== 'helium_val') continue;
+
+
+		}
+
+		//Removing redundant variables
+		let scriptNoRedundantVars = [];
+		let replaceVariations = new Map();
+		let variationDefinitions = new Map();
+
+		for (let i = 0; i < script.length; i++) {
+			let block = script[i];
+			let opcode = block[0];
+
+			for (let j = 1; j < block.length; j++) {
+				if (!block[j].val) continue;
+				if (block[j].type === 'value') continue;
+				
+				while (replaceVariations.has(block[j].val))
+					block[j].val = replaceVariations.get(block[j].val);
+			}
+
+			if (opcode !== 'helium_val') {
+				scriptNoRedundantVars.push(block);
+				continue;
+			}
+			if (replaceVariations.has(block[1])) continue;
+			if (variationDefinitions.has(block[2])) {
+				replaceVariations.set(block[1], variationDefinitions.get(block[2]));
+				continue;
+			}
+			if (block[2].val && block[2].type === "var") {
+				replaceVariations.set(block[1], block[2].val);
+				continue;
+			}
+
+			variationDefinitions.set(block[2], block[1]);
+			scriptNoRedundantVars.push(block);
+		}
+
+		console.log(scriptNoRedundantVars);
+		console.log(scriptNoRedundantVars.length, script.length);
 	}
 
 	optimizeIR() {
@@ -1568,6 +1616,7 @@ class Optimizer {
 				if (!doesScriptDoAnything(script)) continue;
 
 				let basicBlock = [];
+				let simplifiedBasicBlock = [];
 				for (let k = 0; k < script.length; k++) {
 					let block = script[k];
 					let opcode = block[0];
@@ -1577,9 +1626,10 @@ class Optimizer {
 					switch (opcode) {
 						case "helium_start":
 							basicBlock = [];
+							simplifiedBasicBlock = [];
 							break;
 						case "helium_end":
-							console.log(structuredClone(basicBlock));
+							simplifiedBasicBlock = this.optimizeBasicBlock(basicBlock);
 							break;
 						default:
 							basicBlock.push(block);
