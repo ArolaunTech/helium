@@ -1323,17 +1323,75 @@ class Optimizer {
 		return newBlock;
 	}
 
+	getUsedVarsBlock(block) {
+		let usedVars = new Set();
+
+		for (let i = 1; i < block.length; i++) {
+			if (Array.isArray(block[i])) {
+				usedVars = usedVars.union(this.getUsedVarsBlock(block[i]));
+				continue;
+			}
+
+			if (!block[i].val) continue;
+			if (block[i].type === 'value') continue;
+
+			usedVars.add(block[i].val);
+		}
+
+		return usedVars;
+	}
+
 	optimizeBasicBlock(script) {
 		//console.log(script);
 
-		//Compile-time evaluation
+		//Remove unused variables
+		let usedVars = new Set();
+		for (let i = 0; i < script.length; i++) {
+			let block = script[i];
+			usedVars = usedVars.union(this.getUsedVarsBlock(block));
+		}
+
+		let scriptNoUnusedVariables = [];
 		for (let i = 0; i < script.length; i++) {
 			let block = script[i];
 			let opcode = block[0];
 
-			if (opcode !== 'helium_val') continue;
+			if (opcode !== 'helium_val') {
+				scriptNoUnusedVariables.push(block);
+				continue;
+			}
 
+			if (usedVars.has(block[1])) scriptNoUnusedVariables.push(block);
+		}
 
+		//Compile-time evaluation
+		let constantValues = new Map();
+		let scriptEvaluated = [];
+		for (let i = 0; i < scriptNoUnusedVariables.length; i++) {
+			let block = scriptNoUnusedVariables[i];
+			let opcode = block[0];
+
+			for (let j = 1; j < block.length; j++) {
+				if (!block[j].val) continue;
+				if (block[j].type === 'value') continue;
+				if (!constantValues.has(block[j].val)) continue;
+				
+				block[j] = {type: 'value', val: constantValues.get(block[j].val)};
+			}
+
+			if ((opcode !== 'helium_val') || (!Array.isArray(block[2]))) {
+				scriptEvaluated.push(block);
+				continue;
+			}
+
+			let valueOpcode = block[2][0];
+
+			switch (valueOpcode) {
+				default:
+					console.log(i, block, script, valueOpcode);
+			}
+
+			scriptEvaluated.push(block);
 		}
 
 		//Removing redundant variables
@@ -1341,8 +1399,8 @@ class Optimizer {
 		let replaceVariations = new Map();
 		let variationDefinitions = new Map();
 
-		for (let i = 0; i < script.length; i++) {
-			let block = script[i];
+		for (let i = 0; i < scriptEvaluated.length; i++) {
+			let block = scriptEvaluated[i];
 			let opcode = block[0];
 
 			for (let j = 1; j < block.length; j++) {
@@ -1371,8 +1429,10 @@ class Optimizer {
 			scriptNoRedundantVars.push(block);
 		}
 
-		console.log(scriptNoRedundantVars);
+		console.log(scriptNoRedundantVars, script);
 		console.log(scriptNoRedundantVars.length, script.length);
+
+		return scriptNoRedundantVars;
 	}
 
 	optimizeIR() {
@@ -1512,7 +1572,16 @@ class Optimizer {
 				}
 				
 				let block = this.ir.ssa[i][j];
-				let opcode = block[0]
+				let opcode = block[0];
+
+				//Replace data_variable block
+				for (let k = 1; k < block.length; k++) {
+					if ((opcode === 'helium_val') && block[3]) continue;
+					if (!Array.isArray(block[k])) continue;
+					if (block[k][0] !== 'data_variable') continue;
+
+					block[k] = {type: 'var', val: variations[block[k][1]]};
+				}
 
 				let newBlocks = [];
 				switch (opcode) {
@@ -1521,11 +1590,13 @@ class Optimizer {
 						newBlocks.push(['helium_start']);
 
 						for (let k = 0; k < totalVariables; k++) {
+							newBlocks.push(["helium_val", this.numVars, ['data_variable', k], true]);
+
 							variations[k] = this.numVars;
-							newBlocks.push(["helium_val", this.numVars, ["data_variable", k], true]);
 
 							this.numVars++;
 						}
+						//console.log(newBlocks);
 						break;
 					case 'data_setvariableto':
 						//Create a new value
@@ -1545,59 +1616,55 @@ class Optimizer {
 						break;
 					case 'data_deleteoflist':
 						//New value of list - element
-						variations[block[2].val] = this.numVars + 1;
-
-						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[2].val], false]);
 						newBlocks.push([
 							'helium_val', 
-							this.numVars + 1, 
-							['helium_listspliceout', {type: 'var', val: this.numVars}, block[1]], 
+							this.numVars, 
+							['helium_listspliceout', {type: 'var', val: variations[block[2].val]}, block[1]], 
 							false
 						]);
 
-						this.numVars += 2;
+						variations[block[2].val] = this.numVars;
+
+						this.numVars++;
 						break;
 					case 'data_addtolist':
 						//New value of list + element
-						variations[block[2].val] = this.numVars + 1;
-
-						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[2].val], false]);
 						newBlocks.push([
 							'helium_val', 
-							this.numVars + 1, 
-							['helium_listadd', {type: 'var', val: this.numVars}, block[1]], 
+							this.numVars, 
+							['helium_listadd', {type: 'var', val: variations[block[2].val]}, block[1]], 
 							false
 						]);
 
-						this.numVars += 2;
+						variations[block[2].val] = this.numVars;
+
+						this.numVars++;
 						break;
 					case 'data_insertatlist':
 						//New value of list + inserted element
-						variations[block[3].val] = this.numVars + 1;
-
-						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[3].val], false]);
 						newBlocks.push([
 							'helium_val', 
-							this.numVars + 1, 
-							['helium_listinsertatindex', {type: 'var', val: this.numVars}, block[1], block[2]], 
+							this.numVars, 
+							['helium_listinsertatindex', {type: 'var', val: variations[block[3].val]}, block[1], block[2]], 
 							false
 						]);
 
-						this.numVars += 2;
+						variations[block[3].val] = this.numVars;
+
+						this.numVars++;
 						break;
 					case 'data_replaceitemoflist':
 						//New value of list + changed element
-						variations[block[2].val] = this.numVars + 1;
-
-						newBlocks.push(['helium_val', this.numVars, ['data_variable', block[2].val], false]);
 						newBlocks.push([
 							'helium_val', 
-							this.numVars + 1, 
-							['helium_listreplaceatindex', {type: 'var', val: this.numVars}, block[3], block[1]], 
+							this.numVars, 
+							['helium_listreplaceatindex', {type: 'var', val: variations[block[2].val]}, block[3], block[1]], 
 							false
 						]);
 
-						this.numVars += 2;
+						variations[block[2].val] = this.numVars;
+
+						this.numVars++;
 						break;
 						//console.log(i, j, block, opcode);
 					default:
