@@ -352,6 +352,12 @@ class Optimizer {
 					["helium_scale"]
 				], owner);
 			}
+			case "helium_scale": {
+				return this.simplifyReporterStack([
+					"data_variable",
+					this.projectVars["spritescale" + owner]
+				], owner);
+			}
 			case "looks_costumenumbername": {
 				if (block[1] === 'number') {
 					return this.simplifyReporterStack([
@@ -754,6 +760,11 @@ class Optimizer {
 			case "looks_setsizeto": {
 				return this.simplifyScript([
 					["helium_setscaleto", ["operator_multiply", block[1], 0.01]]
+				], owner);
+			}
+			case "helium_setscaleto": {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars["spritescale" + owner], block[1]]
 				], owner);
 			}
 			case "sound_cleareffects": {
@@ -1324,6 +1335,24 @@ class Optimizer {
 		return usedVars;
 	}
 
+	replaceConstantValuesBlock(block, constVals) {
+		let newBlock = [block[0]];
+
+		for (let i = 1; i < block.length; i++) {
+			if (Array.isArray(block[i])) {
+				newBlock.push(this.replaceConstantValuesBlock(block[i], constVals));
+				continue;
+			}
+			if ((!block[i].val) || (block[i].type === 'value') || (!constVals.has(block[i].val))) {
+				newBlock.push(block[i]);
+				continue;
+			}
+			newBlock.push({type: 'value', val: constVals.get(block[i].val)});
+		}
+
+		return newBlock;
+	}
+
 	optimizeBasicBlock(script) {
 		//console.log(script);
 
@@ -1354,13 +1383,7 @@ class Optimizer {
 			let block = scriptNoUnusedVariables[i];
 			let opcode = block[0];
 
-			for (let j = 1; j < block.length; j++) {
-				if (!block[j].val) continue;
-				if (block[j].type === 'value') continue;
-				if (!constantValues.has(block[j].val)) continue;
-				
-				block[j] = {type: 'value', val: constantValues.get(block[j].val)};
-			}
+			block = this.replaceConstantValuesBlock(block, constantValues);
 
 			if ((opcode !== 'helium_val') || (!Array.isArray(block[2]))) {
 				scriptEvaluated.push(block);
@@ -1368,6 +1391,7 @@ class Optimizer {
 			}
 
 			let valueOpcode = block[2][0];
+			let addBlock = true;
 
 			switch (valueOpcode) {
 				case 'data_variable':
@@ -1377,11 +1401,17 @@ class Optimizer {
 				case 'helium_xposition':
 				case 'helium_yposition':
 					break;
+				case 'helium_number':
+					if (block[2][1].type === 'value') {
+						constantValues.set(block[1], castToNumber(block[2][1].val));
+						addBlock = false;
+					}
+					break;
 				default:
 					//console.log(i, block, script, valueOpcode);
 			}
 
-			scriptEvaluated.push(block);
+			if (addBlock) scriptEvaluated.push(block);
 		}
 
 		//Removing redundant variables
