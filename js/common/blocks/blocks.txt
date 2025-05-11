@@ -1,0 +1,1 @@
+This folder contains all Scratch blocks as Javascript functions.

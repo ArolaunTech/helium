@@ -10,15 +10,13 @@ class Optimizer {
 	constructor() {
 		this.ir = null;
 		this.numVars = 0;
-		this.timervar = -1;
-		this.answered = -1;
+		this.projectVars = {};
 	}
 
 	loadIR(load) {
 		this.ir = load;
 		this.numVars = 0;
-		this.timervar = -1;
-		this.answered = -1;
+		this.projectVars = {};
 	}
 
 	findVar(name, owner, vars) {
@@ -205,70 +203,6 @@ class Optimizer {
 			value: DEFAULT_TYPE_VALUES[TYPE_BOOLEAN]
 		});
 		return newidx;
-	}
-
-	removeSpecialVarBlock(block, owner) {
-		let opcode = block[0];
-
-		let newBlock = [opcode];
-		for (let i = 1; i < block.length; i++) {
-			if (Array.isArray(block[i])) {
-				newBlock.push(this.removeSpecialVarBlock(block[i], owner)[0]);
-			} else {
-				newBlock.push(block[i]);
-			}
-		}
-
-		if (opcode === "sensing_timer") {
-			return [[
-				"operator_subtract", 
-				["helium_time"], 
-				["data_variable", this.timervar]
-			]];
-		}
-		if (opcode === "sensing_resettimer") {
-			return [[
-				"data_setvariableto", 
-				this.timervar, 
-				["helium_time"]
-			]];
-		}
-
-		if (opcode === "sensing_askandwait") {
-			return [
-				["data_setvariableto", this.answered, false],
-				["helium_ask", newBlock[1]],
-				["control_wait_until", ["data_variable", this.answered]]
-			];
-		}
-
-		if (opcode === "sound_playuntildone") {
-			for (let i = 0; i < this.ir.sounds.length; i++) {
-				if (this.ir.sounds[i].owner !== owner) {
-					continue;
-				}
-				if (this.ir.sounds[i].obj.name !== newBlock[1]) {
-					continue;
-				}
-				return [
-					["sound_play", newBlock[1]],
-					["control_wait", this.ir.sounds[i].obj.sampleCount/this.ir.sounds[i].obj.rate]
-				];
-			}
-			return [
-				["sound_play", newBlock[1]],
-				["control_wait", ["helium_soundlength", newBlock[1]]]
-			];
-		}
-		return [newBlock];
-	}
-
-	removeSpecialVarScript(script, owner) {
-		let newScript = [];
-		for (let i = 0; i < script.length; i++) {
-			newScript = newScript.concat(this.removeSpecialVarBlock(script[i], owner));
-		}
-		return newScript;
 	}
 
 	simplifyReporterStack(ir, owner) {
@@ -518,6 +452,13 @@ class Optimizer {
 					"operator_add",
 					block[1],
 					["operator_multiply", block[2], -1]
+				], owner);
+			}
+			case "sensing_timer": {
+				return this.simplifyReporterStack([
+					"operator_subtract", 
+					["helium_time"], 
+					["data_variable", this.projectVars.timervar]
 				], owner);
 			}
 			default:
@@ -1209,6 +1150,38 @@ class Optimizer {
 					]
 				], owner);
 			}
+			case "sensing_resettimer": {
+				return this.simplifyScript([[
+					"data_setvariableto", 
+					this.projectVars.timervar, 
+					["helium_time"]
+				]], owner);
+			}
+			case 'sensing_askandwait': {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars.answered, false],
+					["helium_ask", block[1]],
+					["control_wait_until", ["data_variable", this.projectVars.answered]]
+				], owner);
+			}
+			case 'sound_playuntildone': {
+				for (let i = 0; i < this.ir.sounds.length; i++) {
+					if (this.ir.sounds[i].owner !== owner) {
+						continue;
+					}
+					if (this.ir.sounds[i].obj.name !== block[1]) {
+						continue;
+					}
+					return this.simplifyScript([
+						["sound_play", block[1]],
+						["control_wait", this.ir.sounds[i].obj.sampleCount/this.ir.sounds[i].obj.rate]
+					], owner);
+				}
+				return this.simplifyScript([
+					["sound_play", block[1]],
+					["control_wait", ["helium_soundlength", block[1]]]
+				], owner);
+			}
 			default:
 				return [block];
 		}
@@ -1387,6 +1360,13 @@ class Optimizer {
 			let valueOpcode = block[2][0];
 
 			switch (valueOpcode) {
+				case 'data_variable':
+				case 'helium_time':
+				case 'helium_stagewidth':
+				case 'helium_stageheight':
+				case 'helium_xposition':
+				case 'helium_yposition':
+					break;
 				default:
 					console.log(i, block, script, valueOpcode);
 			}
@@ -1474,17 +1454,9 @@ class Optimizer {
 			this.ir.scripts[i].script = this.replaceVariableNames(script, this.ir.scripts[i].owner);
 		}
 
-		//Remove timer blocks
-		this.timervar = this.addNewTempVar();
-		this.answered = this.addNewTempVar();
-		for (let i = 0; i < this.ir.scripts.length; i++) {
-			this.ir.scripts[i].script = this.removeSpecialVarScript(
-				this.ir.scripts[i].script, 
-				this.ir.scripts[i].owner
-			);
-		}
-
 		//Remove wait blocks
+		this.projectVars.timervar = this.addNewTempVar();
+		this.projectVars.answered = this.addNewTempVar();
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}
