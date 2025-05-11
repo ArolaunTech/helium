@@ -1353,6 +1353,24 @@ class Optimizer {
 		return newBlock;
 	}
 
+	replaceRedundantVariablesBlock(block, replaceVars) {
+		let newBlock = [block[0]];
+
+		for (let i = 1; i < block.length; i++) {
+			if (Array.isArray(block[i])) {
+				newBlock.push(this.replaceRedundantVariablesBlock(block[i], replaceVars));
+				continue;
+			}
+			if ((!block[i].val) || (block[i].type === 'value') || (!replaceVars.has(block[i].val))) {
+				newBlock.push(block[i]);
+				continue;
+			}
+			newBlock.push({type: 'var', val: replaceVars.get(block[i].val)});
+		}
+
+		return newBlock;
+	}
+
 	optimizeBasicBlock(script) {
 		//console.log(script);
 
@@ -1407,8 +1425,20 @@ class Optimizer {
 						addBlock = false;
 					}
 					break;
+				case 'helium_max':
+					if ((block[2][1].type === 'value') && (block[2][2].type === 'value')) {
+						constantValues.set(block[1], Math.max(block[2][1].val, block[2][2].val));
+						addBlock = false;
+					}
+					break;
+				case 'helium_min':
+					if ((block[2][1].type === 'value') && (block[2][2].type === 'value')) {
+						constantValues.set(block[1], Math.min(block[2][1].val, block[2][2].val));
+						addBlock = false;
+					}
+					break;
 				default:
-					//console.log(i, block, script, valueOpcode);
+					console.log(i, block, script, valueOpcode);
 			}
 
 			if (addBlock) scriptEvaluated.push(block);
@@ -1423,13 +1453,7 @@ class Optimizer {
 			let block = scriptEvaluated[i];
 			let opcode = block[0];
 
-			for (let j = 1; j < block.length; j++) {
-				if (!block[j].val) continue;
-				if (block[j].type === 'value') continue;
-				
-				while (replaceVariations.has(block[j].val))
-					block[j].val = replaceVariations.get(block[j].val);
-			}
+			block = this.replaceRedundantVariablesBlock(block, replaceVariations);
 
 			if (opcode !== 'helium_val') {
 				scriptNoRedundantVars.push(block);
