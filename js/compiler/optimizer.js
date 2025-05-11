@@ -461,6 +461,11 @@ class Optimizer {
 					["data_variable", this.projectVars.timervar]
 				], owner);
 			}
+			case "music_getTempo": {
+				return this.simplifyReporterStack([
+					"data_variable", this.projectVars.tempo
+				], owner);
+			}
 			default:
 				return block;
 		}
@@ -580,6 +585,11 @@ class Optimizer {
 			case "music_changeTempo": {
 				return this.simplifyScript([
 					["music_setTempo", ["operator_add", ["music_getTempo"], block[1]]]
+				], owner);
+			}
+			case "music_setTempo": {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars.tempo, block[1]]
 				], owner);
 			}
 			case "control_wait_until": {
@@ -1204,9 +1214,9 @@ class Optimizer {
 			opcodes = [block[0]];
 		}
 
-		if (block[0] === "procedures_call") {
-			console.log(block);
-		}
+		//if (block[0] === "procedures_call") {
+		//	console.log(block);
+		//}
 
 		for (let i = 1; i < block.length; i++) {
 			if (Array.isArray(block[i])) {
@@ -1368,7 +1378,7 @@ class Optimizer {
 				case 'helium_yposition':
 					break;
 				default:
-					console.log(i, block, script, valueOpcode);
+					//console.log(i, block, script, valueOpcode);
 			}
 
 			scriptEvaluated.push(block);
@@ -1446,7 +1456,7 @@ class Optimizer {
 				}
 			}
 		}
-		console.log(JSON.stringify(this.ir.scripts));
+		console.log(structuredClone(this.ir.scripts));
 
 		//Replace variable names with IDs
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1457,6 +1467,16 @@ class Optimizer {
 		//Remove wait blocks
 		this.projectVars.timervar = this.addNewTempVar();
 		this.projectVars.answered = this.addNewTempVar();
+		this.projectVars.tempo = this.addNewTempVar();
+		
+		let spriteScales = [];
+		for (let i = 0; i < this.ir.sprites.length; i++) {
+			let spriteScale = this.addNewTempVar();
+
+			spriteScales.push(spriteScale);
+			this.projectVars["spritescale" + i] = spriteScale;
+		}
+
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}

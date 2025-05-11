@@ -870,20 +870,6 @@ function Scratch3toIR(obj) {
 	ir.blocks = blocks;
 	ir.scripts = createScratch3Scripts(blocks);
 	ir.v3info = obj.meta;
-	//console.log(JSON.stringify(ir.blocks));
-
-	for (let i = 0; i < ir.scripts.length; i++) {
-		if (ir.scripts[i].owner === 'Stage') {
-			ir.scripts[i].owner = stageIdx;
-			continue;
-		}
-		let k = 0;
-		for (; k < sprites.length; k++) {
-			if (sprites[k].isStage) continue;
-			if (sprites[k].name == ir.scripts[i].owner) break;
-		}
-		ir.scripts[i].owner = k;
-	}
 
 	ir.stageIndex = stageIdx;
 
