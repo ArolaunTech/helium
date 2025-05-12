@@ -219,7 +219,6 @@ class Optimizer {
 				switch (block[1]) {
 					case "cos":
 					case "sin":
-					case "tan":
 						return this.simplifyReporterStack([
 							"operator_multiply",
 							1e-10,
@@ -231,6 +230,40 @@ class Optimizer {
 									[
 										"helium_"+block[1], 
 										["operator_multiply", block[2], Math.PI/180]
+									]
+								]
+							]
+						], owner);
+					case "tan":
+						return this.simplifyReporterStack([
+							"helium_ternary",
+							[
+								"operator_or",
+								["operator_equals", ["helium_mod", block[2], 360], 90],
+								["operator_equals", ["helium_mod", block[2], 360], -270],
+							],
+							Infinity,
+							[
+								"helium_ternary",
+								[
+									"operator_or",
+									["operator_equals", ["helium_mod", block[2], 360], -90],
+									["operator_equals", ["helium_mod", block[2], 360], 270],
+								],
+								-Infinity,
+								[
+									"operator_multiply",
+									1e-10,
+									[
+										"operator_round",
+										[
+											"operator_multiply",
+											1e10,
+											[
+												"helium_tan", 
+												["operator_multiply", ["helium_mod", block[2], 360], Math.PI/180]
+											]
+										]
 									]
 								]
 							]
