@@ -31,5 +31,7 @@ let heliumMap = new Map([
 	["helium_e ^", Math.exp],
 	["helium_10 ^", helium_pow10],
 	["helium_ternary", helium_ternary],
-	
+	["helium_min", Math.min],
+	["helium_max", Math.max],
+	["helium_number", castToNumber],
 ]);

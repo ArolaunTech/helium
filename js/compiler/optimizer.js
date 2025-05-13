@@ -1444,32 +1444,37 @@ class Optimizer {
 			let valueOpcode = block[2][0];
 			let addBlock = true;
 
+			//All inputs are values
+			let variableInputs = false;
+			for (let i = 1; i < block[2].length; i++) {
+				if (!block[2][i].val) continue;
+				if (block[2][1].type === 'value') continue;
+				variableInputs = true;
+				break;
+			}
+
+			if ((!variableInputs) && (blockMap.has(valueOpcode))) {
+				let inputs = block[2].slice(1);
+				let blockFunction = blockMap.get(valueOpcode);
+				let replaceValue = blockFunction(...inputs);
+
+				constantValues.set(block[1], replaceValue);
+				addBlock = false;
+				continue;
+			}
+
 			switch (valueOpcode) {
-				case 'data_variable':
-				case 'helium_time':
-				case 'helium_stagewidth':
-				case 'helium_stageheight':
-				case 'helium_xposition':
-				case 'helium_yposition':
+				case 'data_variable': //
+				case 'helium_time': // This changes over time (duh)
+				case 'helium_stagewidth': // This might be able to change in a project but no block is changing them so whatever
+				case 'helium_stageheight': //
+				case 'helium_xposition': // TODO - Replace positions with variables
+				case 'helium_yposition': // TODO - Replace positions with variables
+				case 'helium_number': //
+				case 'helium_max': //
+				case 'helium_min': //
 					break;
-				case 'helium_number':
-					if (block[2][1].type === 'value') {
-						constantValues.set(block[1], castToNumber(block[2][1].val));
-						addBlock = false;
-					}
-					break;
-				case 'helium_max':
-					if ((block[2][1].type === 'value') && (block[2][2].type === 'value')) {
-						constantValues.set(block[1], Math.max(block[2][1].val, block[2][2].val));
-						addBlock = false;
-					}
-					break;
-				case 'helium_min':
-					if ((block[2][1].type === 'value') && (block[2][2].type === 'value')) {
-						constantValues.set(block[1], Math.min(block[2][1].val, block[2][2].val));
-						addBlock = false;
-					}
-					break;
+				case 'helium_ternary':
 				default:
 					console.log(i, block, script, valueOpcode);
 			}
