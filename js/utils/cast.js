@@ -63,3 +63,17 @@ function castCompare(v1, v2) {
 	// Compare as numbers.
 	return n1 - n2;
 }
+
+function isInt(val) {
+	// Values that are already numbers.
+	if (typeof val === 'number') {
+		if (isNaN(val)) return true;
+
+		return val === Math.floor(val);
+	} else if (typeof val === 'boolean') {
+		return true;
+	} else if (typeof val === 'string') {
+		return val.indexOf('.') < 0;
+	}
+	return false;
+}

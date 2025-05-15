@@ -1,6 +1,7 @@
 //Combines all of the maps into one
 let categoryMaps = [
-	heliumMap
+	heliumMap,
+	operatorMap,
 ];
 
 let blockMap = new Map();

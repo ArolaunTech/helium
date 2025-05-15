@@ -229,7 +229,7 @@ class Optimizer {
 									1e10,
 									[
 										"helium_"+block[1], 
-										["operator_multiply", block[2], Math.PI/180]
+										["operator_multiply", ["helium_number", block[2]], Math.PI/180]
 									]
 								]
 							]
@@ -239,16 +239,16 @@ class Optimizer {
 							"helium_ternary",
 							[
 								"operator_or",
-								["operator_equals", ["helium_mod", block[2], 360], 90],
-								["operator_equals", ["helium_mod", block[2], 360], -270],
+								["operator_equals", ["helium_mod", ["helium_number", block[2]], 360], 90],
+								["operator_equals", ["helium_mod", ["helium_number", block[2]], 360], -270],
 							],
 							Infinity,
 							[
 								"helium_ternary",
 								[
 									"operator_or",
-									["operator_equals", ["helium_mod", block[2], 360], -90],
-									["operator_equals", ["helium_mod", block[2], 360], 270],
+									["operator_equals", ["helium_mod", ["helium_number", block[2]], 360], -90],
+									["operator_equals", ["helium_mod", ["helium_number", block[2]], 360], 270],
 								],
 								-Infinity,
 								[
@@ -261,7 +261,7 @@ class Optimizer {
 											1e10,
 											[
 												"helium_tan", 
-												["operator_multiply", ["helium_mod", block[2], 360], Math.PI/180]
+												["operator_multiply", ["helium_mod", ["helium_number", block[2]], 360], Math.PI/180]
 											]
 										]
 									]
@@ -275,10 +275,10 @@ class Optimizer {
 						return this.simplifyReporterStack([
 							"operator_multiply",
 							180/Math.PI,
-							["helium_"+block[1],block[2]]
+							["helium_"+block[1], ["helium_number", block[2]]]
 						], owner);
 					default:
-						return ["helium_"+block[1]].concat(block.slice(2));
+						return ["helium_"+block[1], ["helium_number", block[2]]];
 				}
 			}
 			case "sensing_distanceto": {
@@ -503,6 +503,11 @@ class Optimizer {
 			case "music_getTempo": {
 				return this.simplifyReporterStack([
 					"data_variable", this.projectVars.tempo
+				], owner);
+			}
+			case "data_lengthoflist": {
+				return this.simplifyReporterStack([
+					"helium_listlength", ["data_variable", block[1]]
 				], owner);
 			}
 			default:
@@ -1359,7 +1364,7 @@ class Optimizer {
 				continue;
 			}
 
-			if (!block[i].val) continue;
+			if (typeof block[i].val === 'undefined') continue;
 			if (block[i].type === 'value') continue;
 
 			usedVars.add(block[i].val);
@@ -1376,7 +1381,7 @@ class Optimizer {
 				newBlock.push(this.replaceConstantValuesBlock(block[i], constVals));
 				continue;
 			}
-			if ((!block[i].val) || (block[i].type === 'value') || (!constVals.has(block[i].val))) {
+			if ((typeof block[i].val === 'undefined') || (block[i].type === 'value') || (!constVals.has(block[i].val))) {
 				newBlock.push(block[i]);
 				continue;
 			}
@@ -1394,7 +1399,7 @@ class Optimizer {
 				newBlock.push(this.replaceRedundantVariablesBlock(block[i], replaceVars));
 				continue;
 			}
-			if ((!block[i].val) || (block[i].type === 'value') || (!replaceVars.has(block[i].val))) {
+			if ((typeof block[i].val === 'undefined') || (block[i].type === 'value') || (!replaceVars.has(block[i].val))) {
 				newBlock.push(block[i]);
 				continue;
 			}
@@ -1405,33 +1410,11 @@ class Optimizer {
 	}
 
 	optimizeBasicBlock(script) {
-		//console.log(script);
-
-		//Remove unused variables
-		let usedVars = new Set();
-		for (let i = 0; i < script.length; i++) {
-			let block = script[i];
-			usedVars = usedVars.union(this.getUsedVarsBlock(block));
-		}
-
-		let scriptNoUnusedVariables = [];
-		for (let i = 0; i < script.length; i++) {
-			let block = script[i];
-			let opcode = block[0];
-
-			if (opcode !== 'helium_val') {
-				scriptNoUnusedVariables.push(block);
-				continue;
-			}
-
-			if (usedVars.has(block[1])) scriptNoUnusedVariables.push(block);
-		}
-
 		//Compile-time evaluation
 		let constantValues = new Map();
 		let scriptEvaluated = [];
-		for (let i = 0; i < scriptNoUnusedVariables.length; i++) {
-			let block = scriptNoUnusedVariables[i];
+		for (let i = 0; i < script.length; i++) {
+			let block = script[i];
 			let opcode = block[0];
 
 			block = this.replaceConstantValuesBlock(block, constantValues);
@@ -1441,25 +1424,33 @@ class Optimizer {
 				continue;
 			}
 
+			//console.log(block);
+
 			let valueOpcode = block[2][0];
 			let addBlock = true;
 
 			//All inputs are values
 			let variableInputs = false;
+			let inputs = [];
 			for (let i = 1; i < block[2].length; i++) {
-				if (!block[2][i].val) continue;
-				if (block[2][1].type === 'value') continue;
+				if (typeof block[2][i].val === 'undefined') continue;
+				if (block[2][i].type === 'value') {
+					inputs.push(block[2][i].val);
+					continue;
+				}
 				variableInputs = true;
 				break;
 			}
 
+			if ((!variableInputs) && (!blockMap.has(valueOpcode))) console.log(valueOpcode, block);
+
 			if ((!variableInputs) && (blockMap.has(valueOpcode))) {
-				let inputs = block[2].slice(1);
 				let blockFunction = blockMap.get(valueOpcode);
 				let replaceValue = blockFunction(...inputs);
 
+				//console.log(inputs, valueOpcode, blockFunction, replaceValue);
+
 				constantValues.set(block[1], replaceValue);
-				addBlock = false;
 				continue;
 			}
 
@@ -1475,8 +1466,12 @@ class Optimizer {
 				case 'helium_min': //
 					break;
 				case 'helium_ternary':
+					if (typeof block[2][1].val === 'undefined') break;
+					if (block[2][1].type === 'var') break;
+					//console.log(i, block, block[2][1]);
+					break;
 				default:
-					console.log(i, block, script, valueOpcode);
+					//console.log(i, block, script, valueOpcode);
 			}
 
 			if (addBlock) scriptEvaluated.push(block);
@@ -1502,7 +1497,7 @@ class Optimizer {
 				replaceVariations.set(block[1], variationDefinitions.get(block[2]));
 				continue;
 			}
-			if (block[2].val && block[2].type === "var") {
+			if ((typeof block[2].val !== 'undefined') && block[2].type === "var") {
 				replaceVariations.set(block[1], block[2].val);
 				continue;
 			}
@@ -1515,6 +1510,26 @@ class Optimizer {
 		console.log(scriptNoRedundantVars.length, script.length);
 
 		return scriptNoRedundantVars;
+	}
+
+	removeUnusedVariablesScript(script) {
+		let usedVars = new Set();
+		for (let i = 0; i < script.length; i++)
+			usedVars = usedVars.union(this.getUsedVarsBlock(script[i]));
+
+		let newScript = [];
+		for (let i = 0; i < script.length; i++) {
+			let block = script[i];
+			let opcode = block[0];
+
+			if (opcode !== 'helium_val') {
+				newScript.push(block);
+				continue;
+			}
+
+			if (usedVars.has(block[1])) newScript.push(block);
+		}
+		return newScript;
 	}
 
 	optimizeIR() {
@@ -1606,7 +1621,7 @@ class Optimizer {
 				//Add helium_start and helium_end to the insides of loops
 				let innerScript = -1;
 				for (let k = 1; k < script[j].length; k++) {
-					if (!script[j][k].val.script) {
+					if (typeof script[j][k].val.script === 'undefined') {
 						continue;
 					}
 					innerScript = script[j][k].val.script;
@@ -1760,7 +1775,9 @@ class Optimizer {
 		}
 
 		//Optimization passes
-		for (let i = 0; i < 10; i++) {
+		let totalBlocks = 0;
+		let newBlocks = 0;
+		for (let i = 0; i < 1; i++) {
 			//Optimize basic blocks
 			for (let j = 0; j < this.ir.ssa.length; j++) {
 				let script = this.ir.ssa[j];
@@ -1768,6 +1785,8 @@ class Optimizer {
 
 				let basicBlock = [];
 				let simplifiedBasicBlock = [];
+				let newScript = [];
+				let inBasicBlock = false;
 				for (let k = 0; k < script.length; k++) {
 					let block = script[k];
 					let opcode = block[0];
@@ -1778,16 +1797,32 @@ class Optimizer {
 						case "helium_start":
 							basicBlock = [];
 							simplifiedBasicBlock = [];
+							inBasicBlock = true;
 							break;
 						case "helium_end":
+							totalBlocks += basicBlock.length;
 							simplifiedBasicBlock = this.optimizeBasicBlock(basicBlock);
+							newBlocks += simplifiedBasicBlock.length;
+
+							inBasicBlock = false;
+
+							newScript.push(["helium_start"]);
+							newScript = newScript.concat(simplifiedBasicBlock);
+							newScript.push(["helium_end"]);
 							break;
 						default:
 							basicBlock.push(block);
+							if (!inBasicBlock) newScript.push(block);
 					}
 				}
+
+				newScript = this.removeUnusedVariablesScript(newScript);
+
+				console.log(newScript, script);
 			}
 		}
+
+		console.log(100 * (1 - newBlocks/totalBlocks), totalBlocks, newBlocks);
 
 		return this.ir;
 	}
