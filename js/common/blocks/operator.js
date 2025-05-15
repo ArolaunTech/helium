@@ -40,5 +40,5 @@ let operatorMap = new Map([
 	["operator_equals", operator_equals],
 	["operator_not", operator_not],
 	["operator_or", operator_or],
-	["operator_and", operator_add],
+	["operator_and", operator_and],
 ]);

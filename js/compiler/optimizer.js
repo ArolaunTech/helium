@@ -1442,7 +1442,7 @@ class Optimizer {
 				break;
 			}
 
-			if ((!variableInputs) && (!blockMap.has(valueOpcode))) console.log(valueOpcode, block);
+			//if ((!variableInputs) && (!blockMap.has(valueOpcode))) console.log(valueOpcode, block);
 
 			if ((!variableInputs) && (blockMap.has(valueOpcode))) {
 				let blockFunction = blockMap.get(valueOpcode);
@@ -1468,7 +1468,11 @@ class Optimizer {
 				case 'helium_ternary':
 					if (typeof block[2][1].val === 'undefined') break;
 					if (block[2][1].type === 'var') break;
-					//console.log(i, block, block[2][1]);
+					if (block[2][1].val) {
+						block[2] = block[2][2];
+					} else {
+						block[2] = block[2][3];
+					}
 					break;
 				default:
 					//console.log(i, block, script, valueOpcode);
@@ -1476,6 +1480,8 @@ class Optimizer {
 
 			if (addBlock) scriptEvaluated.push(block);
 		}
+
+		console.log(constantValues);
 
 		//Removing redundant variables
 		let scriptNoRedundantVars = [];
@@ -1506,8 +1512,8 @@ class Optimizer {
 			scriptNoRedundantVars.push(block);
 		}
 
-		console.log(scriptNoRedundantVars, script);
-		console.log(scriptNoRedundantVars.length, script.length);
+		//console.log(scriptNoRedundantVars, script);
+		//console.log(scriptNoRedundantVars.length, script.length);
 
 		return scriptNoRedundantVars;
 	}
@@ -1784,30 +1790,22 @@ class Optimizer {
 				if (!doesScriptDoAnything(script)) continue;
 
 				let basicBlock = [];
-				let simplifiedBasicBlock = [];
 				let newScript = [];
 				let inBasicBlock = false;
 				for (let k = 0; k < script.length; k++) {
 					let block = script[k];
 					let opcode = block[0];
 
-					//console.log(j, k, block);
-
 					switch (opcode) {
 						case "helium_start":
 							basicBlock = [];
-							simplifiedBasicBlock = [];
 							inBasicBlock = true;
 							break;
 						case "helium_end":
-							totalBlocks += basicBlock.length;
-							simplifiedBasicBlock = this.optimizeBasicBlock(basicBlock);
-							newBlocks += simplifiedBasicBlock.length;
-
 							inBasicBlock = false;
 
 							newScript.push(["helium_start"]);
-							newScript = newScript.concat(simplifiedBasicBlock);
+							newScript = newScript.concat(this.optimizeBasicBlock(basicBlock));
 							newScript.push(["helium_end"]);
 							break;
 						default:
@@ -1817,6 +1815,9 @@ class Optimizer {
 				}
 
 				newScript = this.removeUnusedVariablesScript(newScript);
+
+				totalBlocks += script.length;
+				newBlocks += newScript.length;
 
 				console.log(newScript, script);
 			}
