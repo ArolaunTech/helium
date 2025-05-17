@@ -1419,10 +1419,43 @@ class Optimizer {
 
 			block = this.replaceConstantValuesBlock(block, constantValues);
 
-			if ((opcode !== 'helium_val') || (!Array.isArray(block[2]))) {
+			/*if ((opcode !== 'helium_val') || (!Array.isArray(block[2]))) {
 				scriptEvaluated.push(block);
 				continue;
 			}
+
+			if (typeof block[2].val !== 'undefined') {
+				if (block[2].type === 'value') {
+					constantValues.set(block[1], block[2].val);
+				} else {
+					scriptEvaluated.push(block);
+				}
+
+				continue;
+			}*/
+
+			
+			if (opcode !== 'helium_val') {
+				scriptEvaluated.push(block);
+				continue;
+			}
+
+			if (typeof block[2].val !== 'undefined') {
+				//console.log(block);
+				if (block[2].type === 'value') {
+					constantValues.set(block[1], block[2].val);
+				} else {
+					scriptEvaluated.push(block);
+				}
+
+				continue;
+			}
+
+			if (!Array.isArray(block[2])) {
+				scriptEvaluated.push(block);
+				continue;
+			}
+			
 
 			//console.log(block);
 
@@ -1448,7 +1481,7 @@ class Optimizer {
 				let blockFunction = blockMap.get(valueOpcode);
 				let replaceValue = blockFunction(...inputs);
 
-				//console.log(inputs, valueOpcode, blockFunction, replaceValue);
+				//console.log(inputs, valueOpcode, blockFunction, replaceValue, block[1], block);
 
 				constantValues.set(block[1], replaceValue);
 				continue;
@@ -1502,7 +1535,7 @@ class Optimizer {
 			if (addBlock) scriptEvaluated.push(block);
 		}
 
-		console.log(constantValues);
+		//console.log(constantValues);
 
 		//Removing redundant variables
 		let scriptNoRedundantVars = [];
@@ -1534,19 +1567,16 @@ class Optimizer {
 		}
 
 		//console.log(scriptNoRedundantVars, script);
+		//console.log(constantValues);
 		//console.log(scriptNoRedundantVars.length, script.length);
 
-		return scriptNoRedundantVars;
-	}
-
-	removeUnusedVariablesScript(script) {
 		let usedVars = new Set();
-		for (let i = 0; i < script.length; i++)
-			usedVars = usedVars.union(this.getUsedVarsBlock(script[i]));
+		for (let i = 0; i < scriptNoRedundantVars.length; i++)
+			usedVars = usedVars.union(this.getUsedVarsBlock(scriptNoRedundantVars[i]));
 
 		let newScript = [];
-		for (let i = 0; i < script.length; i++) {
-			let block = script[i];
+		for (let i = 0; i < scriptNoRedundantVars.length; i++) {
+			let block = scriptNoRedundantVars[i];
 			let opcode = block[0];
 
 			if (opcode !== 'helium_val') {
@@ -1629,6 +1659,11 @@ class Optimizer {
 			let script = this.ir.scripts[i].script;
 			//console.log(script, i, this.ir.scripts[i].owner);
 			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
+		}
+
+		let oldBlocks = 0;
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			oldBlocks += this.ir.scripts[i].script.length;
 		}
 
 		//SSA (not really)
@@ -1812,7 +1847,7 @@ class Optimizer {
 				let script = this.ir.ssa[j];
 				if (!doesScriptDoAnything(script)) continue;
 
-				let basicBlock = [];
+				/*let basicBlock = [];
 				let newScript = [];
 				let inBasicBlock = false;
 				for (let k = 0; k < script.length; k++) {
@@ -1835,9 +1870,10 @@ class Optimizer {
 							basicBlock.push(block);
 							if (!inBasicBlock) newScript.push(block);
 					}
-				}
+				}*/
 
-				newScript = this.removeUnusedVariablesScript(newScript);
+				let newScript = this.optimizeBasicBlock(script);
+				this.ir.ssa[j] = newScript;
 
 				totalBlocks += script.length;
 				newBlocks += newScript.length;
@@ -1846,7 +1882,7 @@ class Optimizer {
 			}
 		}
 
-		console.log(100 * (1 - newBlocks/totalBlocks), totalBlocks, newBlocks);
+		console.log(100 * (1 - newBlocks/totalBlocks), totalBlocks, newBlocks, oldBlocks);
 
 		return this.ir;
 	}
