@@ -25,7 +25,7 @@ class Optimizer {
 			if ((vars[i].owner !== this.ir.stageIndex) && (vars[i].owner !== owner)) continue;
 			return i;
 		}
-		console.error("Cannot find variable: ", name, owner, vars, structuredClone(this.ir));
+		console.error("Cannot find variable: ", name, owner, this.ir.stageIndex, vars);
 	}
 
 	isLoop(block) {
@@ -1466,6 +1466,11 @@ class Optimizer {
 				case 'helium_min': //
 					break;
 				case 'helium_ternary':
+					if (block[2][2] === block[2][3]) {
+						block[2] = block[2][2];
+						break;
+					}
+
 					if (typeof block[2][1].val === 'undefined') break;
 					if (block[2][1].type === 'var') break;
 					if (block[2][1].val) {
@@ -1473,6 +1478,22 @@ class Optimizer {
 					} else {
 						block[2] = block[2][3];
 					}
+					break;
+				case 'operator_add':
+					if ((typeof block[2][1].val !== 'undefined') && (castToNumber(block[2][1].val) === 0)) {
+						block[2] = block[2][2];
+						break;
+					}
+					if ((typeof block[2][2].val !== 'undefined') && (castToNumber(block[2][2].val) === 0))
+						block[2] = block[2][1];
+					break;
+				case 'operator_multiply':
+					if (castToNumber(block[2][1].val) === 1) {
+						block[2] = block[2][2];
+						break;
+					}
+					if (castToNumber(block[2][2].val) === 1)
+						block[2] = block[2][1];
 					break;
 				default:
 					//console.log(i, block, script, valueOpcode);
@@ -1541,7 +1562,7 @@ class Optimizer {
 	optimizeIR() {
 		console.log(structuredClone(this.ir));
 		for (let i = 0; i < this.ir.scripts.length; i++) {
-			console.log(structuredClone(this.ir.scripts[i].script));
+			//console.log(structuredClone(this.ir.scripts[i].script), i, this.ir.scripts[i].owner);
 		}
 
 		//"Fix" internal scripts
@@ -1574,6 +1595,7 @@ class Optimizer {
 		//Replace variable names with IDs
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			let script = this.ir.scripts[i].script;
+			//console.log(script, i, this.ir.scripts[i].owner);
 			this.ir.scripts[i].script = this.replaceVariableNames(script, this.ir.scripts[i].owner);
 		}
 
@@ -1605,6 +1627,7 @@ class Optimizer {
 		//Replace list names with IDs
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			let script = this.ir.scripts[i].script;
+			//console.log(script, i, this.ir.scripts[i].owner);
 			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
 		}
 

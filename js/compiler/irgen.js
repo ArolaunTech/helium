@@ -617,7 +617,7 @@ function createScratch3Block(block, blocks, blockmap) {
 				} else {
 					inputsUsed[k] = true;
 					if (block.inputs[k].isBlock) {
-						let inputBlock = blocks[blockmap.get(block.inputs[k].value)];
+						let inputBlock = blocks[blockmap.get(block.inputs[k].value)[block.owner]];
 						//console.log("input", inputBlock, blocks, block, k, blockmap, block.inputs[k].value);
 						let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
 						if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
@@ -660,7 +660,7 @@ function createScratch3Block(block, blocks, blockmap) {
 				if (block.inputs[j].id !== block.argIds[i]) continue;
 
 				if (block.inputs[j].isBlock) {
-					let inputBlock = blocks[blockmap.get(block.inputs[j].value)];
+					let inputBlock = blocks[blockmap.get(block.inputs[j].value)[block.owner]];
 					let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
 					if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
 						inputScript = inputScript[0];
@@ -677,7 +677,7 @@ function createScratch3Block(block, blocks, blockmap) {
 				continue;
 			}
 			if (block.inputs[i].isBlock) {
-				let inputBlock = blocks[blockmap.get(block.inputs[i].value)];
+				let inputBlock = blocks[blockmap.get(block.inputs[i].value)[block.owner]];
 				let inputScript = createScratch3Script(inputBlock, blocks, blockmap);
 				if (Array.isArray(inputScript[0]) && reporters.includes(inputScript[0][0])) {
 					inputScript = inputScript[0];
@@ -725,7 +725,9 @@ function createScratch3Script(block, blocks, blockmap) {
 	let script = [createScratch3Block(block, blocks, blockmap)];
 	let newBlock = block;
 	while (newBlock.next) {
-		newBlock = blocks[blockmap.get(newBlock.next)];
+		//console.log(newBlock);
+		//console.log(newBlock.owner, newBlock.next, blockmap.get(newBlock.next)[newBlock.owner]);
+		newBlock = blocks[blockmap.get(newBlock.next)[newBlock.owner]];
 		//console.log(newBlock);
 		script.push(createScratch3Block(newBlock, blocks, blockmap));
 	}
@@ -737,10 +739,17 @@ function createScratch3Scripts(blocks) {
 	//Generate block idx map
 	//console.log(JSON.stringify(blocks));
 
+	//console.log(blocks);
 	let blockmap = new Map();
 	for (let i = 0; i < blocks.length; i++) {
-		blockmap.set(blocks[i].id, i);
+		//if (blockmap.has(blocks[i].id)) console.log(blocks[i], blocks[i].id, blockmap.get(blocks[i].id), blocks[blockmap.get(blocks[i].id)]);
+		if (blockmap.has(blocks[i].id)) {
+			blockmap.get(blocks[i].id)[blocks[i].owner] = i;
+		} else {
+			blockmap.set(blocks[i].id, {[blocks[i].owner]: i});
+		}
 	}
+	//console.log(blockmap);
 
 	let scripts = [];
 	for (let i = 0; i < blocks.length; i++) {
@@ -834,9 +843,11 @@ function Scratch3toIR(obj) {
 			sprites[sprites.length - 1].costumes.push(target.costumes[j]);
 		}
 
+		//console.log(target.blocks);
 		for (let prop in target.blocks) {
 			if (target.blocks.hasOwnProperty(prop)) {
 				blocks.push(cleanScratch3Block(target.blocks[prop], i, prop));
+				//console.log(blocks[blocks.length - 1]);
 			}
 		}
 	}

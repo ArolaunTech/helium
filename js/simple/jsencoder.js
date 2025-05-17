@@ -32,7 +32,7 @@ class SimpleIRtoJS {
 	}
 
 	createJS() {
-		console.log(structuredClone(this.ir));
+		//console.log(structuredClone(this.ir));
 
 		//Convert each script to javascript
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -44,7 +44,7 @@ class SimpleIRtoJS {
 				warp = true;
 			}
 			this.ir.scripts[i].warp = warp;
-			console.log(this.createJSFromScript(this.ir.scripts[i], i));
+			//console.log(this.createJSFromScript(this.ir.scripts[i], i));
 		}
 
 		return "";
