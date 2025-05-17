@@ -1418,22 +1418,6 @@ class Optimizer {
 			let opcode = block[0];
 
 			block = this.replaceConstantValuesBlock(block, constantValues);
-
-			/*if ((opcode !== 'helium_val') || (!Array.isArray(block[2]))) {
-				scriptEvaluated.push(block);
-				continue;
-			}
-
-			if (typeof block[2].val !== 'undefined') {
-				if (block[2].type === 'value') {
-					constantValues.set(block[1], block[2].val);
-				} else {
-					scriptEvaluated.push(block);
-				}
-
-				continue;
-			}*/
-
 			
 			if (opcode !== 'helium_val') {
 				scriptEvaluated.push(block);
@@ -1567,7 +1551,6 @@ class Optimizer {
 		}
 
 		//console.log(scriptNoRedundantVars, script);
-		//console.log(constantValues);
 		//console.log(scriptNoRedundantVars.length, script.length);
 
 		let usedVars = new Set();
@@ -1846,31 +1829,6 @@ class Optimizer {
 			for (let j = 0; j < this.ir.ssa.length; j++) {
 				let script = this.ir.ssa[j];
 				if (!doesScriptDoAnything(script)) continue;
-
-				/*let basicBlock = [];
-				let newScript = [];
-				let inBasicBlock = false;
-				for (let k = 0; k < script.length; k++) {
-					let block = script[k];
-					let opcode = block[0];
-
-					switch (opcode) {
-						case "helium_start":
-							basicBlock = [];
-							inBasicBlock = true;
-							break;
-						case "helium_end":
-							inBasicBlock = false;
-
-							newScript.push(["helium_start"]);
-							newScript = newScript.concat(this.optimizeBasicBlock(basicBlock));
-							newScript.push(["helium_end"]);
-							break;
-						default:
-							basicBlock.push(block);
-							if (!inBasicBlock) newScript.push(block);
-					}
-				}*/
 
 				let newScript = this.optimizeBasicBlock(script);
 				this.ir.ssa[j] = newScript;
