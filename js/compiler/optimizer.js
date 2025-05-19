@@ -2023,9 +2023,7 @@ class Optimizer {
 		let totalBlocks = 0;
 		let newBlocks = 0;
 		for (let i = 0; i < 1; i++) {
-			//Optimize basic blocks
-			this.usedVars = Array(this.ir.ssa.length).fill([]);
-
+			//Optimize scripts 
 			for (let j = this.ir.ssa.length - 1; j >= 0; j--) {
 				let script = this.ir.ssa[j];
 
