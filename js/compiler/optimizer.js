@@ -1243,10 +1243,12 @@ class Optimizer {
 				case "control_repeat": {
 					let iteration = this.addNewTempVar();
 
-					let brackets = 0;
-					let j = i;
+					let brackets = 1;
+					let j = i + 1;
 					while (brackets > 0) {
 						j++;
+
+						if (j >= script.length) console.error("Could not find bracket end");
 						if (script[j][0] === 'helium_entry') brackets++;
 						if (script[j][0] === 'helium_exit') brackets--;
 					}
@@ -1667,7 +1669,6 @@ class Optimizer {
 				}
 			}
 		}
-		console.log(structuredClone(this.ir.scripts));
 
 		//Replace variable names with IDs
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1675,6 +1676,15 @@ class Optimizer {
 			//console.log(script, i, this.ir.scripts[i].owner);
 			this.ir.scripts[i].script = this.replaceVariableNames(script, this.ir.scripts[i].owner);
 		}
+
+		//Replace list names with IDs
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			let script = this.ir.scripts[i].script;
+			//console.log(script, i, this.ir.scripts[i].owner);
+			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
+		}
+
+		console.log(structuredClone(this.ir.scripts));
 
 		//Remove wait blocks
 		this.projectVars.timervar = this.addNewTempVar();
@@ -1690,8 +1700,12 @@ class Optimizer {
 		}
 
 		for (let i = 0; i < this.ir.scripts.length; i++) {
+			console.log(i, this.ir.scripts.length, this.ir.scripts[i].script);
+
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}
+
+		console.log(structuredClone(this.ir.scripts));
 
 		let opcodes = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1699,14 +1713,7 @@ class Optimizer {
 		}
 		opcodes = [...new Set(opcodes)];
 		console.log(JSON.stringify(opcodes), opcodes.length);
-		//console.log(structuredClone(this.ir.scripts));
-
-		//Replace list names with IDs
-		for (let i = 0; i < this.ir.scripts.length; i++) {
-			let script = this.ir.scripts[i].script;
-			//console.log(script, i, this.ir.scripts[i].owner);
-			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
-		}
+		console.log(structuredClone(this.ir.scripts));
 
 		let oldBlocks = 0;
 		for (let i = 0; i < this.ir.scripts.length; i++) {
