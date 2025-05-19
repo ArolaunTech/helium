@@ -1348,20 +1348,36 @@ class Optimizer {
 	}
 
 	getUsedVarsBlock(block) {
-		let usedVars = new Set();
+		let usedVars = [];
 
-		if (block[0] === 'helium_updatevar') return usedVars;
+		if (block[0] === 'helium_updatevar') return [];
 
 		for (let i = 1; i < block.length; i++) {
 			if (Array.isArray(block[i])) {
-				usedVars = usedVars.union(this.getUsedVarsBlock(block[i]));
+				usedVars = usedVars.concat(this.getUsedVarsBlock(block[i]));
 				continue;
 			}
 
 			if (typeof block[i].val === 'undefined') continue;
-			if (block[i].type === 'value') continue;
+			if (block[i].type === 'var') {
+				usedVars.push(block[i].val);
+			} else {
+				if (typeof block[i].val.script === 'undefined') continue;
 
-			usedVars.add(block[i].val);
+				usedVars = usedVars.concat(this.getUsedVarsScript(this.ir.ssa[block[i].val.script]));
+			}
+		}
+
+		return usedVars;
+	}
+
+	getUsedVarsScript(script) {
+		let usedVars = [];
+
+		for (let i = 0; i < script.length; i++) {
+			let block = script[i];
+
+			usedVars = usedVars.concat(this.getUsedVarsBlock(block));
 		}
 
 		return usedVars;
@@ -1544,12 +1560,7 @@ class Optimizer {
 			scriptNoRedundantVars.push(block);
 		}
 
-		//console.log(scriptNoRedundantVars, script);
-		//console.log(scriptNoRedundantVars.length, script.length);
-
-		let usedVars = new Set();
-		for (let i = 0; i < scriptNoRedundantVars.length; i++)
-			usedVars = usedVars.union(this.getUsedVarsBlock(scriptNoRedundantVars[i]));
+		let usedVars = new Set(this.getUsedVarsScript(scriptNoRedundantVars));
 
 		let newScript = [];
 		for (let i = 0; i < scriptNoRedundantVars.length; i++) {
@@ -2013,9 +2024,10 @@ class Optimizer {
 		let newBlocks = 0;
 		for (let i = 0; i < 1; i++) {
 			//Optimize basic blocks
-			for (let j = 0; j < this.ir.ssa.length; j++) {
+			this.usedVars = Array(this.ir.ssa.length).fill([]);
+
+			for (let j = this.ir.ssa.length - 1; j >= 0; j--) {
 				let script = this.ir.ssa[j];
-				if (!doesScriptDoAnything(script)) continue;
 
 				let newScript = this.optimizeBasicBlock(script);
 				this.ir.ssa[j] = newScript;
