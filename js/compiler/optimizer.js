@@ -1327,6 +1327,8 @@ class Optimizer {
 	}
 
 	replaceVariableCallsBlock(block, variations) {
+		if ((block[0] === 'helium_val') && block[3]) return block;
+
 		if (block[0] === 'data_variable') {
 			//Replace with variation
 			if (variations[block[1].val] === -1) {
@@ -1429,6 +1431,15 @@ class Optimizer {
 
 			block = this.replaceConstantValuesBlock(block, constantValues);
 			
+			if ((opcode === 'control_while') && (block[1].type === 'value')) {
+				let castCondition = castToBoolean(block[1].val);
+				if (castCondition) {
+					scriptEvaluated.push(block);
+					break;
+				}
+				continue;
+			}
+
 			if (opcode !== 'helium_val') {
 				scriptEvaluated.push(block);
 				continue;
@@ -1567,7 +1578,7 @@ class Optimizer {
 			let block = scriptNoRedundantVars[i];
 			let opcode = block[0];
 
-			if (opcode !== 'helium_val') {
+			if ((opcode !== 'helium_val') || (block.length > 4)) {
 				newScript.push(block);
 				continue;
 			}
@@ -1655,13 +1666,34 @@ class Optimizer {
 		}
 
 		//Add yield points
-		console.log(structuredClone(this.ir.scripts));
+		console.log(structuredClone(this.ir.scripts), this.ir);
+
+		let numSprites = this.ir.sprites.length;
+		for (let i = 0; i < numSprites; i++) {
+			this.ir.scripts.push({
+				owner: i,//this.ir.scripts[i].owner,
+				script: [
+					["helium_end"],
+					["helium_yield"],
+					["helium_start"],
+				]
+			});
+		}
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			let script = this.ir.scripts[i].script;
 			for (let j = 0; j < script.length; j++) {
 				let block = script[j];
 
 				if (!this.hasWait(block)) continue;
+
+				let innerScriptIndex = this.ir.scripts.length - numSprites + this.ir.scripts[i].owner;
+
+				if (!this.isLoop(block)) {
+					this.ir.scripts[i].script.splice(j, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
+					this.ir.scripts[i].script.splice(j+2, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
+					j++;
+					continue;
+				}
 
 				let innerscript = -1;
 				for (let k = 1; k < block.length; k++) {
@@ -1671,16 +1703,7 @@ class Optimizer {
 				}
 				if (innerscript === -1) continue;
 
-				this.ir.scripts.push({
-					owner: this.ir.scripts[i].owner,
-					script: [
-						["helium_end"],
-						["helium_yield"],
-						["helium_start"],
-					]
-				});
-
-				this.ir.scripts[innerscript].script.push(["control_if", ["helium_mustyield"], {script: this.ir.scripts.length - 1}]);
+				this.ir.scripts[innerscript].script.push(["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
 				//console.log(this.ir.scripts[i].script, script, block, i, j, innerscript);
 			}
 			//console.log(this.ir.scripts[i].script);
@@ -1699,18 +1722,6 @@ class Optimizer {
 		console.log(JSON.stringify(this.ir.ssa));
 		for (let i = 0; i < this.ir.ssa.length; i++) {
 			let script = this.ir.ssa[i];
-			for (let j = 0; j < script.length; j++) {
-				if (!this.hasWait(script[j])) {
-					continue;
-				}
-				if (this.isLoop(script[j])) continue;
-
-				//Loops/wait blocks can change where script execution happens so insert a end/start pair
-				this.ir.ssa[i].splice(j, 0, ["helium_end"]);
-				this.ir.ssa[i].splice(j+2, 0, ["helium_start"]);
-				j++;
-				//console.log(i, j, script[j]);
-			}
 			if (doesScriptDoAnything(script)) {
 				this.ir.ssa[i].splice(1,0,["helium_start"]);
 				this.ir.ssa[i].push(["helium_end"]);
@@ -1729,7 +1740,7 @@ class Optimizer {
 				}
 			}
 		}
-		console.log(structuredClone(this.ir.ssa));
+		//console.log(structuredClone(this.ir.ssa));
 
 		/*===== Find starting and ending variations for all scripts while generating phi nodes =====*/
 		let totalVariables = this.ir.variables.length + this.ir.lists.length;
@@ -2014,7 +2025,7 @@ class Optimizer {
 				if (block[2][0] !== 'helium_phi') continue;
 
 				for (let k = 1; k < block[2].length; k++) {
-					if (block[2][k].val === -1) this.ir.ssa[i][j][2][k].val = startingVariations[i];
+					if (block[2][k].val === -1) this.ir.ssa[i][j][2][k].val = startingVariations[i][this.ir.ssa[i][j][4]];
 				}
 			}
 		}
@@ -2036,9 +2047,11 @@ class Optimizer {
 				//console.log(newScript, script);
 			}
 		}
-
+		
+		for (let i = 0; i < this.ir.ssa.length; i++) {
+			console.log(i, this.ir.scripts[i].owner, this.ir.scripts[i].script, this.ir.ssa[i]);
+		}
 		console.log(100 * (1 - newBlocks/totalBlocks), totalBlocks, newBlocks, oldBlocks);
-		console.log(structuredClone(this.ir.ssa));
 
 		return this.ir;
 	}
