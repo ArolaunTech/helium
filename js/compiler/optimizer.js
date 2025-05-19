@@ -1590,32 +1590,25 @@ class Optimizer {
 
 	optimizeIR() {
 		console.log(structuredClone(this.ir));
-		for (let i = 0; i < this.ir.scripts.length; i++) {
-			//console.log(structuredClone(this.ir.scripts[i].script), i, this.ir.scripts[i].owner);
-		}
+		//for (let i = 0; i < this.ir.scripts.length; i++) {
+		//	console.log(structuredClone(this.ir.scripts[i].script), i, this.ir.scripts[i].owner);
+		//}
 
 		//"Fix" internal scripts
-		let internalscriptmap = new Map();
-		let internalscriptset = new Set();
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			let script = this.ir.scripts[i].script;
 			for (let j = 0; j < script.length; j++) {
 				let block = script[j];
-				//if (block[0].slice(0, 7) === "control") {
-				//	console.log(JSON.stringify(block));
-				//}
+				let numBlockScripts = 0;
+
 				for (let k = 1; k < block.length; k++) {
-					if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) {
-						continue;
-					}
-					if (internalscriptset.has(block[k])) {
-						this.ir.scripts[i].script[j][k] = {script: internalscriptmap.get(block[k])};
-					} else {
-						this.ir.scripts.push({owner: this.ir.scripts[i].owner, script: block[k]});
-						this.ir.scripts[i].script[j][k] = {script: this.ir.scripts.length - 1};
-						internalscriptset.add(block[k]);
-						internalscriptmap.set(block[k], this.ir.scripts.length - 1);
-					}
+					if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) continue;
+					let addition = block[k];
+					addition.push(["helium_" + block[0] + "end"]);
+
+					this.ir.scripts[i].script.splice(j+1, 0, ...addition);
+					this.ir.scripts[i].script[j][k] = numBlockScripts;
+					numBlockScripts++;
 				}
 			}
 		}
