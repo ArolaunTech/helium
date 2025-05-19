@@ -1700,7 +1700,6 @@ class Optimizer {
 		}
 
 		for (let i = 0; i < this.ir.scripts.length; i++) {
-			console.log(i, this.ir.scripts.length, this.ir.scripts[i].script);
 
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}
@@ -1713,7 +1712,6 @@ class Optimizer {
 		}
 		opcodes = [...new Set(opcodes)];
 		console.log(JSON.stringify(opcodes), opcodes.length);
-		console.log(structuredClone(this.ir.scripts));
 
 		let oldBlocks = 0;
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1723,42 +1721,37 @@ class Optimizer {
 		//Add yield points
 		console.log(structuredClone(this.ir.scripts), this.ir);
 
-		let numSprites = this.ir.sprites.length;
-		for (let i = 0; i < numSprites; i++) {
-			this.ir.scripts.push({
-				owner: i,//this.ir.scripts[i].owner,
-				script: [
-					["helium_end"],
-					["helium_yield"],
-					["helium_start"],
-				]
-			});
-		}
 		for (let i = 0; i < this.ir.scripts.length; i++) {
-			let script = this.ir.scripts[i].script;
-			for (let j = 0; j < script.length; j++) {
-				let block = script[j];
+			for (let j = 0; j < this.ir.scripts[i].script.length; j++) {
+				let block = this.ir.scripts[i].script[j];
 
 				if (!this.hasWait(block)) continue;
 
-				let innerScriptIndex = this.ir.scripts.length - numSprites + this.ir.scripts[i].owner;
-
 				if (!this.isLoop(block)) {
-					this.ir.scripts[i].script.splice(j, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
-					this.ir.scripts[i].script.splice(j+2, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
+					this.ir.scripts[i].script.splice(j, 0, ["helium_end"]);
+					this.ir.scripts[i].script.splice(j+2, 0, ["helium_start"]);
 					j++;
 					continue;
 				}
 
-				let innerscript = -1;
-				for (let k = 1; k < block.length; k++) {
-					if (typeof block[k].script === 'undefined') continue;
-					innerscript = block[k].script;
-					break;
-				}
-				if (innerscript === -1) continue;
+				let brackets = 1;
+				let k = j + 1;
+				while (brackets > 0) {
+					k++;
 
-				this.ir.scripts[innerscript].script.push(["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
+					if (k >= this.ir.scripts[i].script.length) console.error("Could not find bracket end");
+					if (this.ir.scripts[i].script[k][0] === 'helium_entry') brackets++;
+					if (this.ir.scripts[i].script[k][0] === 'helium_exit') brackets--;
+				}
+
+				this.ir.scripts[i].script.splice(k, 0,
+					["control_if", ["helium_mustyield"], 0],
+					["helium_entry"],
+					["helium_end"],
+					["helium_yield"],
+					["helium_start"],
+					["helium_exit"]
+				);
 				//console.log(this.ir.scripts[i].script, script, block, i, j, innerscript);
 			}
 			//console.log(this.ir.scripts[i].script);
