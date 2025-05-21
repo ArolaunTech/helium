@@ -515,800 +515,743 @@ class Optimizer {
 		}
 	}
 
+	simplifyBlock(ir, owner) {
+		//Turns a block into a simpler form.
+		let opcode = ir[0];
+		let block = [opcode];
+		for	(let i = 1; i < ir.length; i++) {
+			block.push(this.simplifyReporterStack(ir[i], owner));
+		}
+		switch (opcode) {
+			case "motion_turnleft": {
+				return this.simplifyScript([
+					["motion_turnright", ["operator_subtract", 0, block[1]]]
+				], owner);
+			}
+			case "motion_turnright": {
+				return this.simplifyScript([
+					["motion_pointindirection", ["operator_add", ["motion_direction"], block[1]]]
+				], owner);
+			}
+			case "motion_pointindirection": {
+				return this.simplifyScript([
+					[
+						"helium_pointindirection",
+						[
+							"operator_subtract",
+							Math.PI/2,
+							["operator_multiply", Math.PI/180, block[1]]
+						]
+					]
+				], owner);
+			}
+			case "motion_changexby": {
+				return this.simplifyScript([
+					["motion_setx", ["operator_add", ["helium_xposition"], block[1]]]
+				], owner);
+			}
+			case "motion_changeyby": {
+				return this.simplifyScript([
+					["motion_sety", ["operator_add", ["helium_yposition"], block[1]]]
+				], owner);
+			}
+			case "motion_movesteps": {
+				return this.simplifyScript([
+					[
+						"motion_gotoxy",
+						[
+							"operator_add",
+							["motion_xposition"],
+							[
+								"operator_multiply",
+								block[1],
+								["helium_cos", ["helium_direction"]]
+							]
+						],
+						[
+							"operator_add",
+							["motion_yposition"],
+							[
+								"operator_multiply",
+								block[1],
+								["helium_sin", ["helium_direction"]]
+							]
+						],
+					]
+				], owner);
+			}
+			case "control_forever": {
+				return this.simplifyScript([
+					["control_while", true, block[1]]
+				], owner);
+			}
+			case "control_repeat_until": {
+				return this.simplifyScript([
+					["control_while", ["operator_not", block[1]], block[2]]
+				], owner);
+			}
+			case "sound_changevolumeby": {
+				return this.simplifyScript([
+					["sound_setvolumeto", ["operator_add", ["sound_volume"], block[1]]]
+				], owner);
+			}
+			case "motion_goto": {
+				let targetX = [];
+				let targetY = [];
+				if (block[1] === '_mouse_') {
+					targetX = ["sensing_mousex"];
+					targetY = ["sensing_mousey"];
+				} else if (block[1] === '_random_') {
+					targetX = [
+						"operator_round",
+						[
+							"operator_multiply",
+							["operator_random", -0.5, 0.5],
+							["helium_stagewidth"]
+						]
+					];
+					targetY = [
+						"operator_round",
+						[
+							"operator_multiply",
+							["operator_random", -0.5, 0.5],
+							["helium_stageheight"]
+						]
+					];
+				} else {
+					targetX = ["sensing_of", "x position", block[1]];
+					targetY = ["sensing_of", "y position", block[1]];
+				}
+				return this.simplifyScript([
+					["motion_gotoxy", targetX, targetY]
+				], owner);
+			}
+			case "music_changeTempo": {
+				return this.simplifyScript([
+					["music_setTempo", ["operator_add", ["music_getTempo"], block[1]]]
+				], owner);
+			}
+			case "music_setTempo": {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars.tempo, block[1]]
+				], owner);
+			}
+			case "control_wait_until": {
+				this.ir.scripts.push({owner: owner, script:[["helium_nop"]]});
+				return this.simplifyScript([
+					["control_repeat_until", block[1], {script:this.ir.scripts.length-1}]
+				], owner);
+			}
+			case "control_wait": {
+				let endTime = this.addNewTempVar();
+				return this.simplifyScript([
+					[
+						"data_setvariableto", 
+						endTime, 
+						[
+							"operator_add", 
+							["helium_time"], 
+							block[1]
+						]
+					],
+					[
+						"control_wait_until", 
+						[
+							"operator_gt", 
+							["helium_time"], 
+							["data_variable", endTime]
+						]
+					]
+				], owner);
+			}
+			case "looks_nextcostume": {
+				return this.simplifyScript([
+					["looks_switchcostumeto", ["operator_add", 2, ["helium_costumenumber"]]]
+				], owner);
+			}
+			case "looks_sayforsecs": {
+				return this.simplifyScript([
+					["looks_say", block[1]],
+					["control_wait", block[2]],
+					["looks_say", ""]
+				], owner);
+			}
+			case "looks_thinkforsecs": {
+				return this.simplifyScript([
+					["looks_think", block[1]],
+					["control_wait", block[2]],
+					["looks_think", ""]
+				], owner);
+			}
+			case "looks_cleargraphiceffects": {
+				return this.simplifyScript([
+					["looks_seteffectto", "COLOR", 0],
+					["looks_seteffectto", "FISHEYE", 0],
+					["looks_seteffectto", "WHIRL", 0],
+					["looks_seteffectto", "PIXELATE", 0],
+					["looks_seteffectto", "MOSAIC", 0],
+					["looks_seteffectto", "BRIGHTNESS", 0],
+					["looks_seteffectto", "GHOST", 0]
+				], owner);
+			}
+			case "looks_changesizeby": {
+				return this.simplifyScript([
+					["looks_setsizeto", ["operator_add", ["looks_size"], block[1]]]
+				], owner);
+			}
+			case "motion_pointtowards": {
+				if (block[1] === '_random_') {
+					return this.simplifyScript([
+						[
+							"motion_pointindirection",
+							["operator_round", ["operator_random", -180.0, 180.0]],
+						]
+					], owner);
+				}
+
+				let targetX = ["sensing_of", "x position", block[1]];
+				let targetY = ["sensing_of", "y position", block[1]];
+				if (block[1] === '_mouse_') {
+					targetX = ["sensing_mousex"];
+					targetY = ["sensing_mousey"];
+				}
+				return this.simplifyScript([
+					[
+						"helium_pointindirection", 
+						[
+							"helium_atan2", 
+							["operator_subtract", targetY, ["helium_yposition"]],
+							["operator_subtract", targetX, ["helium_xposition"]]
+						]
+					]
+				], owner);
+			}
+			case "motion_glidesecstoxy": {
+				let duration = this.addNewTempVar();
+				let start = this.addNewTempVar();
+				let x = this.addNewTempVar();
+				let y = this.addNewTempVar();
+				let dx = this.addNewTempVar();
+				let dy = this.addNewTempVar();
+				this.ir.scripts.push({owner: owner, script:[
+					[
+						"motion_gotoxy",
+						[
+							"operator_add",
+							["data_variable", x],
+							[
+								"operator_multiply",
+								["data_variable", dx],
+								[
+									"operator_divide", 
+									[
+										"operator_subtract", 
+										["helium_time"], 
+										["data_variable", start]
+									], 
+									["data_variable", duration]
+								]
+							]
+						],
+						[
+							"operator_add",
+							["data_variable", y],
+							[
+								"operator_multiply",
+								["data_variable", dy],
+								[
+									"operator_divide", 
+									[
+										"operator_subtract", 
+										["helium_time"], 
+										["data_variable", start]
+									], 
+									["data_variable", duration]
+								]
+							]
+						]
+					]
+				]});
+				return this.simplifyScript([
+					["data_setvariableto", duration, block[1]],
+					["data_setvariableto", start, ["helium_time"]],
+					["data_setvariableto", x, ["helium_xposition"]],
+					["data_setvariableto", y, ["helium_yposition"]],
+					["data_setvariableto", dx, ["operator_subtract", block[2], ["helium_xposition"]]],
+					["data_setvariableto", dy, ["operator_subtract", block[3], ["helium_yposition"]]],
+					[
+						"control_repeat_until", 
+						[
+							"operator_gt",
+							["helium_time"],
+							[
+								"operator_add", 
+								["data_variable", start], 
+								["data_variable", duration]
+							]
+						],
+						{script:this.ir.scripts.length-1}
+					]
+
+				], owner);
+			}
+			case "looks_setsizeto": {
+				return this.simplifyScript([
+					["helium_setscaleto", ["operator_multiply", block[1], 0.01]]
+				], owner);
+			}
+			case "helium_setscaleto": {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars["spritescale" + owner], block[1]]
+				], owner);
+			}
+			case "sound_cleareffects": {
+				return this.simplifyScript([
+					["sound_seteffectto", "PITCH", 0],
+					["sound_seteffectto", "PAN", 0]
+				], owner);
+			}
+			case "motion_glideto": {
+				//console.log(block);
+				if (block[2] === "_mouse_") {
+					return this.simplifyScript([
+						["motion_glidesecstoxy", block[1], ["sensing_mousex"], ["sensing_mousey"]]
+					], owner);
+				} else if (block[2] === "_random_") {
+					return this.simplifyScript([
+						[
+							"motion_glidesecstoxy", 
+							block[1], 
+							["operator_round", ["operator_random", -0.5, 0.5], ["helium_stagewidth"]],
+							["operator_round", ["operator_random", -0.5, 0.5], ["helium_stageheight"]]
+						]
+					], owner);
+				} else {
+					return this.simplifyScript([
+						[
+							"motion_glidesecstoxy", 
+							block[1], 
+							["sensing_of", "x position", block[1]],
+							["sensing_of", "y position", block[1]]
+						]
+					], owner);
+				}
+			}
+			case "data_changevariableby": {
+				return this.simplifyScript([
+					[
+						"data_setvariableto", 
+						block[1], 
+						[
+							"operator_add", 
+							["data_variable", block[1]],
+							block[2]
+						]
+					]
+				], owner);
+			}
+			case "motion_ifonedgebounce": {
+				//Vars
+				let boundsLeft = this.addNewTempVar();
+				let boundsTop = this.addNewTempVar();
+				let boundsRight = this.addNewTempVar();
+				let boundsBottom = this.addNewTempVar();
+
+				let distLeft = this.addNewTempVar();
+				let distTop = this.addNewTempVar();
+				let distRight = this.addNewTempVar();
+				let distBottom = this.addNewTempVar();
+
+				let minDist = this.addNewTempVar();
+				let nearestEdge = this.addNewTempVar();
+
+				let dx = this.addNewTempVar();
+				let dy = this.addNewTempVar();
+
+				this.ir.scripts.push({owner:owner, script:[[
+					"data_setvariableto",
+					dx,
+					[
+						"helium_max", 
+						0.2, 
+						[
+							"helium_abs", 
+							["data_variable", dx]
+						]
+					]
+				]]});
+				this.ir.scripts.push({owner:owner, script:[[
+					"data_setvariableto",
+					dy,
+					[
+						"operator_subtract", 
+						0, 
+						[
+							"helium_max", 
+							0.2, 
+							[
+								"helium_abs", 
+								["data_variable", dy]
+							]
+						]
+					]
+				]]});
+				this.ir.scripts.push({owner:owner, script:[[
+					"data_setvariableto",
+					dx,
+					[
+						"operator_subtract", 
+						0, 
+						[
+							"helium_max", 
+							0.2, 
+							[
+								"helium_abs", 
+								["data_variable", dx]
+							]
+						]
+					]
+				]]});
+				this.ir.scripts.push({owner:owner, script:[[
+					"data_setvariableto",
+					dy,
+					[
+						"helium_max", 
+						0.2, 
+						[
+							"helium_abs", 
+							["data_variable", dy]
+						]
+					]
+				]]});
+
+				this.ir.scripts.push({owner:owner, script:[
+					["data_setvariableto", nearestEdge, 2]
+				]});
+				this.ir.scripts.push({owner:owner, script:[
+					["data_setvariableto", nearestEdge, 1]
+				]});
+				this.ir.scripts.push({owner:owner, script:[
+					["data_setvariableto", nearestEdge, 0]
+				]});
+				this.ir.scripts.push({owner:owner, script:[
+					["data_setvariableto", dx, ["helium_cos", ["helium_direction"]]],
+					["data_setvariableto", dy, ["helium_sin", ["helium_direction"]]],
+					[
+						"control_if",
+						["operator_equals", ["data_variable", nearestEdge], 0],
+						{script: this.ir.scripts.length-8}
+					],
+					[
+						"control_if",
+						["operator_equals", ["data_variable", nearestEdge], 1],
+						{script: this.ir.scripts.length-7}
+					],
+					[
+						"control_if",
+						["operator_equals", ["data_variable", nearestEdge], 2],
+						{script: this.ir.scripts.length-6}
+					],
+					[
+						"control_if",
+						["operator_equals", ["data_variable", nearestEdge], 3],
+						{script: this.ir.scripts.length-5}
+					],
+					[
+						"helium_pointindirection", 
+						[
+							"helium_atan2", 
+							["data_variable", dy],
+							["data_variable", dx]
+						]
+					],
+					[
+						"motion_changexby",
+						[
+							"operator_subtract",
+							[
+								"helium_min",
+								0,
+								[
+									"operator_subtract",
+									["operator_multiply", ["helium_stagewidth"], 0.5],
+									["data_variable", boundsRight]
+								]
+							],
+							[
+								"helium_min",
+								0,
+								[
+									"operator_add",
+									["operator_multiply", ["helium_stagewidth"], 0.5],
+									["data_variable", boundsLeft]
+								]
+							]
+						]
+					],
+					[
+						"motion_changeyby",
+						[
+							"operator_subtract",
+							[
+								"helium_min",
+								0,
+								[
+									"operator_subtract",
+									["operator_multiply", ["helium_stageheight"], 0.5],
+									["data_variable", boundsTop]
+								]
+							],
+							[
+								"helium_min",
+								0,
+								[
+									"operator_add",
+									["operator_multiply", ["helium_stageheight"], 0.5],
+									["data_variable", boundsBottom]
+								]
+							]
+						]
+					]
+				]});
+
+				return this.simplifyScript([
+					["data_setvariableto", boundsLeft, ["helium_boundsleft"]],
+					["data_setvariableto", boundsTop, ["helium_boundstop"]],
+					["data_setvariableto", boundsRight, ["helium_boundsright"]],
+					["data_setvariableto", boundsBottom, ["helium_boundsbottom"]],
+
+					[
+						"data_setvariableto", 
+						distLeft, 
+						[
+							"helium_max", 
+							0,
+							[
+								"operator_add", 
+								["operator_multiply", ["helium_stagewidth"], 0.5],
+								["data_variable", boundsLeft]
+							] 
+						]
+					],
+					[
+						"data_setvariableto", 
+						distTop, 
+						[
+							"helium_max", 
+							0,
+							[
+								"operator_subtract", 
+								["operator_multiply", ["helium_stageheight"], 0.5],
+								["data_variable", boundsTop]
+							] 
+						]
+					],
+					[
+						"data_setvariableto", 
+						distRight, 
+						[
+							"helium_max", 
+							0,
+							[
+								"operator_subtract", 
+								["operator_multiply", ["helium_stagewidth"], 0.5],
+								["data_variable", boundsRight]
+							] 
+						]
+					],
+					[
+						"data_setvariableto", 
+						distBottom, 
+						[
+							"helium_max", 
+							0,
+							[
+								"operator_add", 
+								["operator_multiply", ["helium_stageheight"], 0.5],
+								["data_variable", boundsBottom]
+							] 
+						]
+					],
+	
+					[
+						"data_setvariableto", 
+						minDist, 
+						[
+							"helium_min", 
+							["helium_min", ["data_variable", distLeft], ["data_variable", distRight]], 
+							["helium_min", ["data_variable", distTop], ["data_variable", distBottom]]
+						]
+					],
+					["data_setvariableto", nearestEdge, 3],
+					[
+						"control_if", 
+						[
+							"operator_equals", 
+							["data_variable", minDist],
+							["data_variable", distRight]
+						],
+						{script: this.ir.scripts.length-4}
+					],
+					[
+						"control_if", 
+						[
+							"operator_equals", 
+							["data_variable", minDist], 
+							["data_variable", distTop]
+						],
+						{script: this.ir.scripts.length-3}
+					],
+					[
+						"control_if", 
+						[
+							"operator_equals", 
+							["data_variable", minDist], 
+							["data_variable", distLeft]
+						],
+						{script: this.ir.scripts.length-2}
+					],
+					[
+						"control_if", 
+						[
+							"operator_not", 
+							[
+								"operator_gt", 
+								["data_variable", minDist],
+								0
+							]
+						],
+						{script: this.ir.scripts.length-1}
+					]
+				], owner);
+			}
+			case "music_restForBeats": {
+				return this.simplifyScript([
+					[
+						"control_wait",
+						[
+							"operator_divide",
+							[
+								"operator_multiply",
+								60,
+								["helium_min", 100, ["helium_max", 0, ["helium_number", block[1]]]]
+							],
+							["music_getTempo"]
+						]
+					]
+				], owner);
+			}
+			case "music_playDrumForBeats": {
+				return this.simplifyScript([
+					[
+						"helium_playDrum",
+						[
+							"helium_wrapClamp",
+							block[1],
+							0, 17
+						]
+					],
+					["music_restForBeats", block[2]]
+				], owner);
+			}
+			case "music_playNoteForBeats": {
+				let durationSec = this.addNewTempVar();
+
+				this.ir.scripts.push({owner: owner, script:[
+					[
+						"helium_playNote", 
+						[
+							"helium_min", 
+							130, 
+							[
+								"helium_max", 
+								0, 
+								["helium_number", block[1]]
+							]
+						],
+						["data_variable", durationSec]
+					],
+					["control_wait", ["data_variable", durationSec]]
+				]});
+
+				return this.simplifyScript([
+					[
+						"data_setvariableto",
+						durationSec,
+						[
+							"operator_divide",
+							[
+								"operator_multiply",
+								60,
+								["helium_min", 100, ["helium_max", 0, ["helium_number", block[2]]]]
+							],
+							["music_getTempo"]
+						]
+					],
+					[
+						"control_if", 
+						["operator_gt", ["data_variable", durationSec], 0],
+						{script: this.ir.scripts.length - 1}
+					]
+				], owner);
+			}
+			case "control_repeat": {
+				let iteration = this.addNewTempVar();
+
+				this.ir.scripts[block[2].script].script.push(["data_changevariableby", iteration, 1]);
+
+				return this.simplifyScript([
+					["data_setvariableto", iteration, 0],
+					[
+						"control_while", 
+						["operator_lt", ["data_variable", iteration], block[1]],
+						block[2]
+					]
+				], owner);
+			}
+			case "sensing_resettimer": {
+				return this.simplifyScript([[
+					"data_setvariableto", 
+					this.projectVars.timervar, 
+					["helium_time"]
+				]], owner);
+			}
+			case 'sensing_askandwait': {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars.answered, false],
+					["helium_ask", block[1]],
+					["control_wait_until", ["data_variable", this.projectVars.answered]]
+				], owner);
+			}
+			case 'sound_playuntildone': {
+				for (let i = 0; i < this.ir.sounds.length; i++) {
+					if (this.ir.sounds[i].owner !== owner) {
+						continue;
+					}
+					if (this.ir.sounds[i].obj.name !== block[1]) {
+						continue;
+					}
+					return this.simplifyScript([
+						["sound_play", block[1]],
+						["control_wait", this.ir.sounds[i].obj.sampleCount/this.ir.sounds[i].obj.rate]
+					], owner);
+				}
+				return this.simplifyScript([
+					["sound_play", block[1]],
+					["control_wait", ["helium_soundlength", block[1]]]
+				], owner);
+			}
+			default:
+				return [block];
+		}
+	}
+
 	simplifyScript(script, owner) {
 		for (let i = 0; i < script.length; i++) {
 			let block = script[i];
-			let opcode = block[0];
-			for	(let j = 1; j < block.length; j++) {
-				block[j] = this.simplifyReporterStack(block[j], owner);
-			}
-
-			let newBlocks = [block];
-
-			switch (opcode) {
-				case "motion_turnleft": {
-					newBlocks = [
-						["motion_turnright", ["operator_multiply", -1, block[1]]]
-					];
-					break;
-				}
-				case "motion_turnright": {
-					newBlocks = [
-						["motion_pointindirection", ["operator_add", ["motion_direction"], block[1]]]
-					];
-					break;
-				}
-				case "motion_pointindirection": {
-					newBlocks = [
-						[
-							"helium_pointindirection",
-							[
-								"operator_subtract",
-								Math.PI/2,
-								["operator_multiply", Math.PI/180, block[1]]
-							]
-						]
-					];
-					break;
-				}
-				case "motion_changexby": {
-					newBlocks = [
-						["motion_setx", ["operator_add", ["helium_xposition"], block[1]]]
-					];
-					break;
-				}
-				case "motion_changeyby": {
-					newBlocks = [
-						["motion_sety", ["operator_add", ["helium_yposition"], block[1]]]
-					];
-					break;
-				}
-				case "motion_movesteps": {
-					newBlocks = [
-						[
-							"motion_gotoxy",
-							[
-								"operator_add",
-								["motion_xposition"],
-								[
-									"operator_multiply",
-									block[1],
-									["helium_cos", ["helium_direction"]]
-								]
-							],
-							[
-								"operator_add",
-								["motion_yposition"],
-								[
-									"operator_multiply",
-									block[1],
-									["helium_sin", ["helium_direction"]]
-								]
-							],
-						]
-					];
-					break;
-				}
-				case "control_forever": {
-					newBlocks = [
-						["control_while", true, 0]
-					];
-					break;
-				}
-				case "control_repeat_until": {
-					newBlocks = [
-						["control_while", ["operator_not", block[1]], 0]
-					];
-					break;
-				}
-				case "sound_changevolumeby": {
-					newBlocks = [
-						["sound_setvolumeto", ["operator_add", ["sound_volume"], block[1]]]
-					];
-					break;
-				}
-				case "motion_goto": {
-					let targetX = [];
-					let targetY = [];
-					if (block[1] === '_mouse_') {
-						targetX = ["sensing_mousex"];
-						targetY = ["sensing_mousey"];
-					} else if (block[1] === '_random_') {
-						targetX = [
-							"operator_round",
-							[
-								"operator_multiply",
-								["operator_random", -0.5, 0.5],
-								["helium_stagewidth"]
-							]
-						];
-						targetY = [
-							"operator_round",
-							[
-								"operator_multiply",
-								["operator_random", -0.5, 0.5],
-								["helium_stageheight"]
-							]
-						];
-					} else {
-						targetX = ["sensing_of", "x position", block[1]];
-						targetY = ["sensing_of", "y position", block[1]];
-					}
-					newBlocks = [
-						["motion_gotoxy", targetX, targetY]
-					];
-					break;
-				}
-				case "music_changeTempo": {
-					newBlocks = [
-						["music_setTempo", ["operator_add", ["music_getTempo"], block[1]]]
-					];
-					break;
-				}
-				case "music_setTempo": {
-					newBlocks = [
-						["data_setvariableto", this.projectVars.tempo, block[1]]
-					];
-					break;
-				}
-				case "control_wait_until": {
-					newBlocks = [
-						["control_repeat_until", block[1], 0],
-						["helium_entry"],
-						["helium_exit"]
-					];
-					break;
-				}
-				case "control_wait": {
-					let endTime = this.addNewTempVar();
-					newBlocks = [
-						[
-							"data_setvariableto", 
-							endTime, 
-							[
-								"operator_add", 
-								["helium_time"], 
-								block[1]
-							]
-						],
-						[
-							"control_wait_until", 
-							[
-								"operator_gt", 
-								["helium_time"], 
-								["data_variable", endTime]
-							]
-						]
-					];
-					break;
-				}
-				case "looks_nextcostume": {
-					newBlocks = [
-						["looks_switchcostumeto", ["operator_add", 2, ["helium_costumenumber"]]]
-					];
-					break;
-				}
-				case "looks_sayforsecs": {
-					newBlocks = [
-						["looks_say", block[1]],
-						["control_wait", block[2]],
-						["looks_say", ""]
-					];
-					break;
-				}
-				case "looks_thinkforsecs": {
-					newBlocks = [
-						["looks_think", block[1]],
-						["control_wait", block[2]],
-						["looks_think", ""]
-					];
-					break;
-				}
-				case "looks_cleargraphiceffects": {
-					newBlocks = [
-						["looks_seteffectto", "COLOR", 0],
-						["looks_seteffectto", "FISHEYE", 0],
-						["looks_seteffectto", "WHIRL", 0],
-						["looks_seteffectto", "PIXELATE", 0],
-						["looks_seteffectto", "MOSAIC", 0],
-						["looks_seteffectto", "BRIGHTNESS", 0],
-						["looks_seteffectto", "GHOST", 0]
-					];
-					break;
-				}
-				case "looks_changesizeby": {
-					newBlocks = [
-						["looks_setsizeto", ["operator_add", ["looks_size"], block[1]]]
-					];
-					break;
-				}
-				case "motion_pointtowards": {
-					if (block[1] === '_random_') {
-						newBlocks = [
-							[
-								"motion_pointindirection",
-								["operator_round", ["operator_random", -180.0, 180.0]],
-							]
-						];
-						break;
-					}
-
-					let targetX = ["sensing_of", "x position", block[1]];
-					let targetY = ["sensing_of", "y position", block[1]];
-					if (block[1] === '_mouse_') {
-						targetX = ["sensing_mousex"];
-						targetY = ["sensing_mousey"];
-					}
-					newBlocks = [
-						[
-							"helium_pointindirection", 
-							[
-								"helium_atan2", 
-								["operator_subtract", targetY, ["helium_yposition"]],
-								["operator_subtract", targetX, ["helium_xposition"]]
-							]
-						]
-					];
-					break;
-				}
-				case "motion_glidesecstoxy": {
-					let duration = this.addNewTempVar();
-					let start = this.addNewTempVar();
-					let x = this.addNewTempVar();
-					let y = this.addNewTempVar();
-					let dx = this.addNewTempVar();
-					let dy = this.addNewTempVar();
-
-					newBlocks = [
-						["data_setvariableto", duration, block[1]],
-						["data_setvariableto", start, ["helium_time"]],
-						["data_setvariableto", x, ["helium_xposition"]],
-						["data_setvariableto", y, ["helium_yposition"]],
-						["data_setvariableto", dx, ["operator_subtract", block[2], ["helium_xposition"]]],
-						["data_setvariableto", dy, ["operator_subtract", block[3], ["helium_yposition"]]],
-						[
-							"control_repeat_until", 
-							[
-								"operator_gt",
-								["helium_time"],
-								[
-									"operator_add", 
-									["data_variable", start], 
-									["data_variable", duration]
-								]
-							],
-							0
-						],
-						["helium_entry"],
-						[
-							"motion_gotoxy",
-							[
-								"operator_add",
-								["data_variable", x],
-								[
-									"operator_multiply",
-									["data_variable", dx],
-									[
-										"operator_divide", 
-										[
-											"operator_subtract", 
-											["helium_time"], 
-											["data_variable", start]
-										], 
-										["data_variable", duration]
-									]
-								]
-							],
-							[
-								"operator_add",
-								["data_variable", y],
-								[
-									"operator_multiply",
-									["data_variable", dy],
-									[
-										"operator_divide", 
-										[
-											"operator_subtract", 
-											["helium_time"], 
-											["data_variable", start]
-										], 
-										["data_variable", duration]
-									]
-								]
-							]
-						]
-						["helium_exit"]
-					];
-					break;	
-				}
-				case "looks_setsizeto": {
-					newBlocks = [
-						["helium_setscaleto", ["operator_multiply", block[1], 0.01]]
-					];
-					break;
-				}
-				case "helium_setscaleto": {
-					newBlocks = [
-						["data_setvariableto", this.projectVars["spritescale" + owner], block[1]]
-					];
-					break;
-				}
-				case "sound_cleareffects": {
-					newBlocks = [
-						["sound_seteffectto", "PITCH", 0],
-						["sound_seteffectto", "PAN", 0]
-					];
-					break;
-				}
-				case "motion_glideto": {
-					//console.log(block);
-					if (block[2] === "_mouse_") {
-						newBlocks = [
-							["motion_glidesecstoxy", block[1], ["sensing_mousex"], ["sensing_mousey"]]
-						];
-					} else if (block[2] === "_random_") {
-						newBlocks = [
-							[
-								"motion_glidesecstoxy", 
-								block[1], 
-								["operator_round", ["operator_random", -0.5, 0.5], ["helium_stagewidth"]],
-								["operator_round", ["operator_random", -0.5, 0.5], ["helium_stageheight"]]
-							]
-						];
-					} else {
-						newBlocks = [
-							[
-								"motion_glidesecstoxy", 
-								block[1], 
-								["sensing_of", "x position", block[1]],
-								["sensing_of", "y position", block[1]]
-							]
-						];
-					}
-					break;
-				}
-				case "data_changevariableby": {
-					newBlocks = [
-						[
-							"data_setvariableto", 
-							block[1], 
-							[
-								"operator_add", 
-								["data_variable", block[1]],
-								block[2]
-							]
-						]
-					];
-					break;
-				}
-				case "motion_ifonedgebounce": {
-					//Vars
-					let boundsLeft = this.addNewTempVar();
-					let boundsTop = this.addNewTempVar();
-					let boundsRight = this.addNewTempVar();
-					let boundsBottom = this.addNewTempVar();
-
-					let distLeft = this.addNewTempVar();
-					let distTop = this.addNewTempVar();
-					let distRight = this.addNewTempVar();
-					let distBottom = this.addNewTempVar();
-
-					let minDist = this.addNewTempVar();
-					let nearestEdge = this.addNewTempVar();
-
-					let dx = this.addNewTempVar();
-					let dy = this.addNewTempVar();
-
-					newBlocks = [
-						["data_setvariableto", boundsLeft, ["helium_boundsleft"]],
-						["data_setvariableto", boundsTop, ["helium_boundstop"]],
-						["data_setvariableto", boundsRight, ["helium_boundsright"]],
-						["data_setvariableto", boundsBottom, ["helium_boundsbottom"]],
-
-						[
-							"data_setvariableto", 
-							distLeft, 
-							[
-								"helium_max", 
-								0,
-								[
-									"operator_add", 
-									["operator_multiply", ["helium_stagewidth"], 0.5],
-									["data_variable", boundsLeft]
-								] 
-							]
-						],
-						[
-							"data_setvariableto", 
-							distTop, 
-							[
-								"helium_max", 
-								0,
-								[
-									"operator_subtract", 
-									["operator_multiply", ["helium_stageheight"], 0.5],
-									["data_variable", boundsTop]
-								] 
-							]
-						],
-						[
-							"data_setvariableto", 
-							distRight, 
-							[
-								"helium_max", 
-								0,
-								[
-									"operator_subtract", 
-									["operator_multiply", ["helium_stagewidth"], 0.5],
-									["data_variable", boundsRight]
-								] 
-							]
-						],
-						[
-							"data_setvariableto", 
-							distBottom, 
-							[
-								"helium_max", 
-								0,
-								[
-									"operator_add", 
-									["operator_multiply", ["helium_stageheight"], 0.5],
-									["data_variable", boundsBottom]
-								] 
-							]
-						],
-		
-						[
-							"data_setvariableto", 
-							minDist, 
-							[
-								"helium_min", 
-								["helium_min", ["data_variable", distLeft], ["data_variable", distRight]], 
-								["helium_min", ["data_variable", distTop], ["data_variable", distBottom]]
-							]
-						],
-						["data_setvariableto", nearestEdge, 3],
-						[
-							"control_if", 
-							[
-								"operator_equals", 
-								["data_variable", minDist],
-								["data_variable", distRight]
-							],
-							0
-						],
-						["helium_entry"],
-							["data_setvariableto", nearestEdge, 2],
-						["helium_exit"],
-						[
-							"control_if", 
-							[
-								"operator_equals", 
-								["data_variable", minDist], 
-								["data_variable", distTop]
-							],
-							0
-						],
-						["helium_entry"],
-							["data_setvariableto", nearestEdge, 1],
-						["helium_exit"],
-						[
-							"control_if", 
-							[
-								"operator_equals", 
-								["data_variable", minDist], 
-								["data_variable", distLeft]
-							],
-							0
-						],
-						["helium_entry"],
-							["data_setvariableto", nearestEdge, 0],
-						["helium_exit"],
-						[
-							"control_if", 
-							[
-								"operator_not", 
-								[
-									"operator_gt", 
-									["data_variable", minDist],
-									0
-								]
-							],
-							0
-						],
-						["helium_entry"],
-							["data_setvariableto", dx, ["helium_cos", ["helium_direction"]]],
-							["data_setvariableto", dy, ["helium_sin", ["helium_direction"]]],
-							[
-								"control_if",
-								["operator_equals", ["data_variable", nearestEdge], 0],
-								0
-							],
-							["helium_entry"],
-							[
-								"data_setvariableto",
-								dx,
-								[
-									"helium_max", 
-									0.2, 
-									[
-										"helium_abs", 
-										["data_variable", dx]
-									]
-								]
-							],
-							["helium_exit"],
-							[
-								"control_if",
-								["operator_equals", ["data_variable", nearestEdge], 1],
-								0
-							],
-							["helium_entry"],
-							[
-								"data_setvariableto",
-								dy,
-								[
-									"helium_max", 
-									0.2, 
-									[
-										"helium_abs", 
-										["data_variable", dy]
-									]
-								]
-							],
-							["helium_exit"],
-							[
-								"control_if",
-								["operator_equals", ["data_variable", nearestEdge], 2],
-								0
-							],
-							["helium_entry"],
-							[
-								"data_setvariableto",
-								dx,
-								[
-									"operator_subtract", 
-									0, 
-									[
-										"helium_max", 
-										0.2, 
-										[
-											"helium_abs", 
-											["data_variable", dx]
-										]
-									]
-								]
-							],
-							["helium_exit"],
-							[
-								"control_if",
-								["operator_equals", ["data_variable", nearestEdge], 3],
-								0
-							],
-							["helium_entry"],
-							[
-								"data_setvariableto",
-								dy,
-								[
-									"operator_subtract", 
-									0, 
-									[
-										"helium_max", 
-										0.2, 
-										[
-											"helium_abs", 
-											["data_variable", dy]
-										]
-									]
-								]
-							],
-							["helium_exit"],
-							[
-								"helium_pointindirection", 
-								[
-									"helium_atan2", 
-									["data_variable", dy],
-									["data_variable", dx]
-								]
-							],
-							[
-								"motion_gotoxy",
-								[
-									"operator_add",
-									["motion_xposition"],
-									[
-										"operator_subtract",
-										[
-											"helium_min",
-											0,
-											[
-												"operator_subtract",
-												["operator_multiply", ["helium_stagewidth"], 0.5],
-												["data_variable", boundsRight]
-											]
-										],
-										[
-											"helium_min",
-											0,
-											[
-												"operator_add",
-												["operator_multiply", ["helium_stagewidth"], 0.5],
-												["data_variable", boundsLeft]
-											]
-										]
-									]
-								],
-								[
-									"operator_add",
-									["motion_yposition"],
-									[
-										"operator_subtract",
-										[
-											"helium_min",
-											0,
-											[
-												"operator_subtract",
-												["operator_multiply", ["helium_stageheight"], 0.5],
-												["data_variable", boundsTop]
-											]
-										],
-										[
-											"helium_min",
-											0,
-											[
-												"operator_add",
-												["operator_multiply", ["helium_stageheight"], 0.5],
-												["data_variable", boundsBottom]
-											]
-										]
-									]
-								]
-							],
-						["helium_exit"]
-					];
-					break;
-				}
-				case "music_restForBeats": {
-					newBlocks = [
-						[
-							"control_wait",
-							[
-								"operator_divide",
-								[
-									"operator_multiply",
-									60,
-									["helium_min", 100, ["helium_max", 0, ["helium_number", block[1]]]]
-								],
-								["music_getTempo"]
-							]
-						]
-					];
-					break;
-				}
-				case "music_playDrumForBeats": {
-					newBlocks = [
-						[
-							"helium_playDrum",
-							[
-								"helium_wrapClamp",
-								block[1],
-								0, 17
-							]
-						],
-						["music_restForBeats", block[2]]
-					];
-					break;
-				}
-				case "music_playNoteForBeats": {
-					let durationSec = this.addNewTempVar();
-
-					newBlocks = [
-						[
-							"data_setvariableto",
-							durationSec,
-							[
-								"operator_divide",
-								[
-									"operator_multiply",
-									60,
-									["helium_min", 100, ["helium_max", 0, ["helium_number", block[2]]]]
-								],
-								["music_getTempo"]
-							]
-						],
-						[
-							"control_if", 
-							["operator_gt", ["data_variable", durationSec], 0],
-							0
-						],
-						["helium_entry"],
-						[
-							"helium_playNote", 
-							[
-								"helium_min", 
-								130, 
-								[
-									"helium_max", 
-									0, 
-									["helium_number", block[1]]
-								]
-							],
-							["data_variable", durationSec]
-						],
-						["control_wait", ["data_variable", durationSec]],
-						["helium_exit"]
-					];
-					break;
-				}
-				case "control_repeat": {
-					let iteration = this.addNewTempVar();
-
-					let brackets = 1;
-					let j = i + 1;
-					while (brackets > 0) {
-						j++;
-
-						if (j >= script.length) console.error("Could not find bracket end");
-						if (script[j][0] === 'helium_entry') brackets++;
-						if (script[j][0] === 'helium_exit') brackets--;
-					}
-
-					script.splice(j, 0, ["data_changevariableby", iteration, 1]);
-
-					newBlocks = [
-						["data_setvariableto", iteration, 0],
-						[
-							"control_while", 
-							["operator_lt", ["data_variable", iteration], block[1]],
-							0
-						]
-					];
-					break;
-				}
-				case "sensing_resettimer": {
-					newBlocks = [[
-						"data_setvariableto", 
-						this.projectVars.timervar, 
-						["helium_time"]
-					]];
-					break;
-				}
-				case 'sensing_askandwait': {
-					newBlocks = [
-						["data_setvariableto", this.projectVars.answered, false],
-						["helium_ask", block[1]],
-						["control_wait_until", ["data_variable", this.projectVars.answered]]
-					];
-					break;
-				}
-				case 'sound_playuntildone': {
-					let soundFound = false;
-					for (let i = 0; i < this.ir.sounds.length; i++) {
-						if (this.ir.sounds[i].owner !== owner) {
-							continue;
-						}
-						if (this.ir.sounds[i].obj.name !== block[1]) {
-							continue;
-						}
-						newBlocks = [
-							["sound_play", block[1]],
-							["control_wait", this.ir.sounds[i].obj.sampleCount/this.ir.sounds[i].obj.rate]
-						];
-						soundFound = true;
-					}
-					if (!soundFound) {
-						newBlocks = [
-							["sound_play", block[1]],
-							["control_wait", ["helium_soundlength", block[1]]]
-						];
-					}
-					break;
-				}
-			}
-
-			if (!nDarrayEquality(newBlocks, [block])) {
-				script.splice(i, 1, ...newBlocks);
-				i--;
+			let simplifiedBlock = this.simplifyBlock(block, owner);
+			if (block !== simplifiedBlock) {
+				script.splice(i, 1, ...simplifiedBlock);
 			}
 		}
 		return script;
@@ -1647,28 +1590,36 @@ class Optimizer {
 
 	optimizeIR() {
 		console.log(structuredClone(this.ir));
-		//for (let i = 0; i < this.ir.scripts.length; i++) {
-		//	console.log(structuredClone(this.ir.scripts[i].script), i, this.ir.scripts[i].owner);
-		//}
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			//console.log(structuredClone(this.ir.scripts[i].script), i, this.ir.scripts[i].owner);
+		}
 
 		//"Fix" internal scripts
+		let internalscriptmap = new Map();
+		let internalscriptset = new Set();
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			let script = this.ir.scripts[i].script;
 			for (let j = 0; j < script.length; j++) {
 				let block = script[j];
-				let numBlockScripts = 0;
-
+				//if (block[0].slice(0, 7) === "control") {
+				//	console.log(JSON.stringify(block));
+				//}
 				for (let k = 1; k < block.length; k++) {
-					if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) continue;
-					let addition = [["helium_entry"]].concat(block[k]);
-					addition.push(["helium_exit"]);
-
-					this.ir.scripts[i].script.splice(j+1, 0, ...addition);
-					this.ir.scripts[i].script[j][k] = numBlockScripts;
-					numBlockScripts++;
+					if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) {
+						continue;
+					}
+					if (internalscriptset.has(block[k])) {
+						this.ir.scripts[i].script[j][k] = {script: internalscriptmap.get(block[k])};
+					} else {
+						this.ir.scripts.push({owner: this.ir.scripts[i].owner, script: block[k]});
+						this.ir.scripts[i].script[j][k] = {script: this.ir.scripts.length - 1};
+						internalscriptset.add(block[k]);
+						internalscriptmap.set(block[k], this.ir.scripts.length - 1);
+					}
 				}
 			}
 		}
+		console.log(structuredClone(this.ir.scripts));
 
 		//Replace variable names with IDs
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1676,15 +1627,6 @@ class Optimizer {
 			//console.log(script, i, this.ir.scripts[i].owner);
 			this.ir.scripts[i].script = this.replaceVariableNames(script, this.ir.scripts[i].owner);
 		}
-
-		//Replace list names with IDs
-		for (let i = 0; i < this.ir.scripts.length; i++) {
-			let script = this.ir.scripts[i].script;
-			//console.log(script, i, this.ir.scripts[i].owner);
-			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
-		}
-
-		console.log(structuredClone(this.ir.scripts));
 
 		//Remove wait blocks
 		this.projectVars.timervar = this.addNewTempVar();
@@ -1700,11 +1642,8 @@ class Optimizer {
 		}
 
 		for (let i = 0; i < this.ir.scripts.length; i++) {
-
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}
-
-		console.log(structuredClone(this.ir.scripts));
 
 		let opcodes = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1712,6 +1651,14 @@ class Optimizer {
 		}
 		opcodes = [...new Set(opcodes)];
 		console.log(JSON.stringify(opcodes), opcodes.length);
+		//console.log(structuredClone(this.ir.scripts));
+
+		//Replace list names with IDs
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			let script = this.ir.scripts[i].script;
+			//console.log(script, i, this.ir.scripts[i].owner);
+			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
+		}
 
 		let oldBlocks = 0;
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1721,37 +1668,42 @@ class Optimizer {
 		//Add yield points
 		console.log(structuredClone(this.ir.scripts), this.ir);
 
+		let numSprites = this.ir.sprites.length;
+		for (let i = 0; i < numSprites; i++) {
+			this.ir.scripts.push({
+				owner: i,//this.ir.scripts[i].owner,
+				script: [
+					["helium_end"],
+					["helium_yield"],
+					["helium_start"],
+				]
+			});
+		}
 		for (let i = 0; i < this.ir.scripts.length; i++) {
-			for (let j = 0; j < this.ir.scripts[i].script.length; j++) {
-				let block = this.ir.scripts[i].script[j];
+			let script = this.ir.scripts[i].script;
+			for (let j = 0; j < script.length; j++) {
+				let block = script[j];
 
 				if (!this.hasWait(block)) continue;
 
+				let innerScriptIndex = this.ir.scripts.length - numSprites + this.ir.scripts[i].owner;
+
 				if (!this.isLoop(block)) {
-					this.ir.scripts[i].script.splice(j, 0, ["helium_end"]);
-					this.ir.scripts[i].script.splice(j+2, 0, ["helium_start"]);
+					this.ir.scripts[i].script.splice(j, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
+					this.ir.scripts[i].script.splice(j+2, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
 					j++;
 					continue;
 				}
 
-				let brackets = 1;
-				let k = j + 1;
-				while (brackets > 0) {
-					k++;
-
-					if (k >= this.ir.scripts[i].script.length) console.error("Could not find bracket end");
-					if (this.ir.scripts[i].script[k][0] === 'helium_entry') brackets++;
-					if (this.ir.scripts[i].script[k][0] === 'helium_exit') brackets--;
+				let innerscript = -1;
+				for (let k = 1; k < block.length; k++) {
+					if (typeof block[k].script === 'undefined') continue;
+					innerscript = block[k].script;
+					break;
 				}
+				if (innerscript === -1) continue;
 
-				this.ir.scripts[i].script.splice(k, 0,
-					["control_if", ["helium_mustyield"], 0],
-					["helium_entry"],
-					["helium_end"],
-					["helium_yield"],
-					["helium_start"],
-					["helium_exit"]
-				);
+				this.ir.scripts[innerscript].script.push(["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
 				//console.log(this.ir.scripts[i].script, script, block, i, j, innerscript);
 			}
 			//console.log(this.ir.scripts[i].script);
