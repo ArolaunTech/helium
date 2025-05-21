@@ -1431,14 +1431,14 @@ class Optimizer {
 
 			block = this.replaceConstantValuesBlock(block, constantValues);
 			
-			if ((opcode === 'control_while') && (block[1].type === 'value')) {
+			/*if ((opcode === 'control_while') && (block[1].type === 'value')) {
 				let castCondition = castToBoolean(block[1].val);
 				if (castCondition) {
 					scriptEvaluated.push(block);
 					break;
 				}
 				continue;
-			}
+			}*/
 
 			if (opcode !== 'helium_val') {
 				scriptEvaluated.push(block);
@@ -2030,16 +2030,56 @@ class Optimizer {
 			}
 		}
 
+		//Inlining
+		let inlinedScripts = Array(this.ir.ssa.length).fill([]);
+		this.ir.ssaInlined = [];
+		for (let i = this.ir.ssa.length - 1; i >= 0; i--) {
+			let newScript = [];
+			for (let j = 0; j < this.ir.ssa[i].length; j++) {
+				let newBlock = [this.ir.ssa[i][j][0]];
+				let innerscripts = [];
+
+				for (let k = 1; k < this.ir.ssa[i][j].length; k++) {
+					if (
+						(typeof this.ir.ssa[i][j][k].val === 'undefined') ||
+						(this.ir.ssa[i][j][k].type === 'var') ||
+						(typeof this.ir.ssa[i][j][k].val.script === 'undefined')
+					) {
+						newBlock.push(this.ir.ssa[i][j][k]);
+						continue;
+					}
+
+					newBlock.push(innerscripts.length);
+					innerscripts.push(this.ir.ssa[i][j][k].val.script);
+				}
+
+				newScript.push(newBlock);
+				for (let k = 0; k < innerscripts.length; k++) {
+					newScript.push(["helium_entry"]);
+					newScript = newScript.concat(inlinedScripts[innerscripts[k]]);
+					newScript.push(["helium_exit"]);
+				}
+			}
+
+			inlinedScripts[i] = newScript;
+
+			if (doesScriptDoAnything(newScript)) {
+				this.ir.ssaInlined.push({owner: this.ir.scripts[i].owner, script: newScript});
+			}
+		}
+
+		//console.log(this.ir.ssaInlined);
+
 		//Optimization passes
 		let totalBlocks = 0;
 		let newBlocks = 0;
 		for (let i = 0; i < 1; i++) {
 			//Optimize scripts 
-			for (let j = this.ir.ssa.length - 1; j >= 0; j--) {
-				let script = this.ir.ssa[j];
+			for (let j = this.ir.ssaInlined.length - 1; j >= 0; j--) {
+				let script = this.ir.ssaInlined[j];
 
 				let newScript = this.optimizeBasicBlock(script);
-				this.ir.ssa[j] = newScript;
+				this.ir.ssaInlined[j] = newScript;
 
 				totalBlocks += script.length;
 				newBlocks += newScript.length;
