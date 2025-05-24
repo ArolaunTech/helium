@@ -1331,6 +1331,12 @@ class Optimizer {
 
 		if (block[0] === 'data_variable') {
 			//Replace with variation
+			if (typeof block[1] === 'number') {
+				if (variations[block[1]] === -1) return block;
+
+				return {type: "var", val: variations[block[1]]};
+			}
+
 			if (variations[block[1].val] === -1) {
 				return block;
 			}
@@ -1349,10 +1355,10 @@ class Optimizer {
 		return newBlock;
 	}
 
-	getUsedVarsBlock(block) {
+	getUsedVarsBlock(block, heliumStartVars) {
 		let usedVars = [];
 
-		if (block[0] === 'helium_updatevar') return [];
+		if ((block[0] === 'helium_updatevar') && (heliumStartVars.has(block[2].val))) return [];
 
 		for (let i = 1; i < block.length; i++) {
 			if (Array.isArray(block[i])) {
@@ -1363,23 +1369,7 @@ class Optimizer {
 			if (typeof block[i].val === 'undefined') continue;
 			if (block[i].type === 'var') {
 				usedVars.push(block[i].val);
-			} else {
-				if (typeof block[i].val.script === 'undefined') continue;
-
-				usedVars = usedVars.concat(this.getUsedVarsScript(this.ir.ssa[block[i].val.script]));
 			}
-		}
-
-		return usedVars;
-	}
-
-	getUsedVarsScript(script) {
-		let usedVars = [];
-
-		for (let i = 0; i < script.length; i++) {
-			let block = script[i];
-
-			usedVars = usedVars.concat(this.getUsedVarsBlock(block));
 		}
 
 		return usedVars;
@@ -1431,14 +1421,14 @@ class Optimizer {
 
 			block = this.replaceConstantValuesBlock(block, constantValues);
 			
-			/*if ((opcode === 'control_while') && (block[1].type === 'value')) {
+			if ((opcode === 'control_while') && (block[1].type === 'value')) {
 				let castCondition = castToBoolean(block[1].val);
 				if (castCondition) {
 					scriptEvaluated.push(block);
 					break;
 				}
 				continue;
-			}*/
+			}
 
 			if (opcode !== 'helium_val') {
 				scriptEvaluated.push(block);
@@ -1571,21 +1561,7 @@ class Optimizer {
 			scriptNoRedundantVars.push(block);
 		}
 
-		let usedVars = new Set(this.getUsedVarsScript(scriptNoRedundantVars));
-
-		let newScript = [];
-		for (let i = 0; i < scriptNoRedundantVars.length; i++) {
-			let block = scriptNoRedundantVars[i];
-			let opcode = block[0];
-
-			if ((opcode !== 'helium_val') || (block.length > 4)) {
-				newScript.push(block);
-				continue;
-			}
-
-			if (usedVars.has(block[1])) newScript.push(block);
-		}
-		return newScript;
+		return scriptNoRedundantVars;
 	}
 
 	optimizeIR() {
@@ -1755,6 +1731,7 @@ class Optimizer {
 		}
 
 		//Ending variations are calculated "backwards" while starting variations are calculated "forwards" (TODO)
+		let heliumStartVars = new Set();
 		for (let i = this.ir.ssa.length - 1; i >= 0; i--) {
 			let variations = Array(totalVariables).fill(-1);
 
@@ -1769,30 +1746,26 @@ class Optimizer {
 				let innerscript = -1;
 				let innerscriptendvariations = [];
 
-				let varsSet = new Set();
-
 				switch (opcode) {
 					case 'helium_start':
 						//Set the values to variable values
 						for (let k = 0; k < totalVariables; k++) {
 							newBlocks.push(["helium_val", this.numVars, ['data_variable', k], true, k]);
+							heliumStartVars.add(this.numVars);
 							this.numVars++;
 						}
-
-						varsSet.clear();
 						//console.log(newBlocks);
 						break;
 					case 'helium_end':
 						//Set the variables to values
-						for (const k of varsSet)
-							newBlocks.push(["helium_updatevar", k, {type: "var", val: variations[k]}]);
+						for (let k = 0; k < totalVariables; k++) {
+							newBlocks.push(["helium_updatevar", k, ['data_variable', k]]);
+						}
 						//console.log(newBlocks);
 						break;
 					case 'helium_val':
 						if (block.length > 4) {
 							variations[block[4]] = block[1];
-
-							varsSet.add(block[4]);
 							//console.log(block);
 						}
 						break;
@@ -1891,8 +1864,6 @@ class Optimizer {
 						//Create a new value
 						variations[block[1].val] = this.numVars;
 
-						varsSet.add(block[1].val);
-
 						this.ir.ssa[i][j] = ['helium_val', this.numVars, block[2], false, block[1].val];
 
 						this.numVars++;
@@ -1900,8 +1871,6 @@ class Optimizer {
 					case 'data_deletealloflist':
 						//New value of []
 						variations[block[1].val] = this.numVars;
-
-						varsSet.add(block[1].val);
 
 						this.ir.ssa[i][j] = ['helium_val', this.numVars, {type: 'value', val: []}, false, block[1].val];
 
@@ -1912,14 +1881,12 @@ class Optimizer {
 						this.ir.ssa[i][j] = [
 							'helium_val', 
 							this.numVars, 
-							['helium_listspliceout', {type: 'var', val: variations[block[2].val]}, block[1]], 
+							['helium_listspliceout', ['data_variable', block[2].val], block[1]], 
 							false,
 							block[2].val
 						];
 
 						variations[block[2].val] = this.numVars;
-
-						varsSet.add(block[2].val);
 
 						this.numVars++;
 						break;
@@ -1928,14 +1895,12 @@ class Optimizer {
 						this.ir.ssa[i][j] = [
 							'helium_val', 
 							this.numVars, 
-							['helium_listadd', {type: 'var', val: variations[block[2].val]}, block[1]], 
+							['helium_listadd', ['data_variable', block[2].val], block[1]], 
 							false,
 							block[2].val
 						];
 
 						variations[block[2].val] = this.numVars;
-
-						varsSet.add(block[2].val);
 
 						this.numVars++;
 						break;
@@ -1944,14 +1909,12 @@ class Optimizer {
 						this.ir.ssa[i][j] = [
 							'helium_val', 
 							this.numVars, 
-							['helium_listinsertatindex', {type: 'var', val: variations[block[3].val]}, block[1], block[2]], 
+							['helium_listinsertatindex', ['data_variable', block[3].val], block[1], block[2]], 
 							false,
 							block[3].val
 						];
 
 						variations[block[3].val] = this.numVars;
-
-						varsSet.add(block[3].val);
 
 						this.numVars++;
 						break;
@@ -1960,14 +1923,12 @@ class Optimizer {
 						this.ir.ssa[i][j] = [
 							'helium_val', 
 							this.numVars, 
-							['helium_listreplaceatindex', {type: 'var', val: variations[block[2].val]}, block[3], block[1]], 
+							['helium_listreplaceatindex', ['data_variable', block[2].val], block[3], block[1]], 
 							false,
 							block[2].val
 						];
 
 						variations[block[2].val] = this.numVars;
-
-						varsSet.add(block[2].val);
 
 						this.numVars++;
 						break;
@@ -1981,6 +1942,8 @@ class Optimizer {
 
 			endingVariations[i] = variations;
 		}
+
+		//console.log(heliumStartVars);
 		
 		//Fill in starting variations
 		for (let i = 0; i < this.ir.ssa.length; i++) {
@@ -1994,11 +1957,6 @@ class Optimizer {
 
 				startingVariations[i][j] = startingVariations[foundscript][j];
 			}
-		}
-
-		//Combining starting and ending variation data (COMPLETE)
-		for (let i = 0; i < this.ir.ssa.length; i++) {
-			if (endingVariations[i] === -1) endingVariations[i] = startingVariations[i];
 		}
 
 		//Replace data_variable block
@@ -2030,56 +1988,48 @@ class Optimizer {
 			}
 		}
 
-		//Inlining
-		let inlinedScripts = Array(this.ir.ssa.length).fill([]);
-		this.ir.ssaInlined = [];
-		for (let i = this.ir.ssa.length - 1; i >= 0; i--) {
-			let newScript = [];
-			for (let j = 0; j < this.ir.ssa[i].length; j++) {
-				let newBlock = [this.ir.ssa[i][j][0]];
-				let innerscripts = [];
-
-				for (let k = 1; k < this.ir.ssa[i][j].length; k++) {
-					if (
-						(typeof this.ir.ssa[i][j][k].val === 'undefined') ||
-						(this.ir.ssa[i][j][k].type === 'var') ||
-						(typeof this.ir.ssa[i][j][k].val.script === 'undefined')
-					) {
-						newBlock.push(this.ir.ssa[i][j][k]);
-						continue;
-					}
-
-					newBlock.push(innerscripts.length);
-					innerscripts.push(this.ir.ssa[i][j][k].val.script);
-				}
-
-				newScript.push(newBlock);
-				for (let k = 0; k < innerscripts.length; k++) {
-					newScript.push(["helium_entry"]);
-					newScript = newScript.concat(inlinedScripts[innerscripts[k]]);
-					newScript.push(["helium_exit"]);
-				}
-			}
-
-			inlinedScripts[i] = newScript;
-
-			if (doesScriptDoAnything(newScript)) {
-				this.ir.ssaInlined.push({owner: this.ir.scripts[i].owner, script: newScript});
-			}
-		}
-
-		//console.log(this.ir.ssaInlined);
-
 		//Optimization passes
 		let totalBlocks = 0;
 		let newBlocks = 0;
 		for (let i = 0; i < 1; i++) {
-			//Optimize scripts 
-			for (let j = this.ir.ssaInlined.length - 1; j >= 0; j--) {
-				let script = this.ir.ssaInlined[j];
+			//Find used variables
+			let usedVars = new Set();
+			for (let j = 0; j < this.ir.ssa.length; j++) {
+				let script = this.ir.ssa[j];
+				for (let k = 0; k < script.length; k++) {
+					let block = script[k];
+					
+					let usedVarsBlock = this.getUsedVarsBlock(block, heliumStartVars);
+					for (let l = 0; l < usedVarsBlock.length; l++) {
+						usedVars.add(usedVarsBlock[l]);
+					}
+				}
+			}
 
-				let newScript = this.optimizeBasicBlock(script);
-				this.ir.ssaInlined[j] = newScript;
+			//Optimize scripts 
+			for (let j = this.ir.ssa.length - 1; j >= 0; j--) {
+				let script = this.ir.ssa[j];
+
+				//Remove unused variables
+				let newScript = [];
+
+				for (let i = 0; i < script.length; i++) {
+					let block = script[i];
+					let opcode = block[0];
+
+					if ((opcode === 'helium_updatevar') && heliumStartVars.has(block[2].val)) continue;
+
+					if (opcode !== 'helium_val') {
+						newScript.push(block);
+						continue;
+					}
+
+					if (usedVars.has(block[1])) newScript.push(block);
+				}
+
+				//Perform optimizations
+				newScript = this.optimizeBasicBlock(newScript);
+				this.ir.ssa[j] = newScript;
 
 				totalBlocks += script.length;
 				newBlocks += newScript.length;
