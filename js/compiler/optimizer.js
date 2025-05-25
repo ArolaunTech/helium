@@ -510,6 +510,10 @@ class Optimizer {
 					"helium_listlength", ["data_variable", block[1]]
 				], owner);
 			}
+			case "argument_reporter_boolean": {
+				if (block[1] === 'is compiled?') return true;
+				return block;
+			}
 			default:
 				return block;
 		}
@@ -637,7 +641,7 @@ class Optimizer {
 				], owner);
 			}
 			case "control_wait_until": {
-				this.ir.scripts.push({owner: owner, script:[["helium_nop"]]});
+				this.ir.scripts.push({owner: owner, script:[]});
 				return this.simplifyScript([
 					["control_repeat_until", block[1], {script:this.ir.scripts.length-1}]
 				], owner);
@@ -1195,7 +1199,8 @@ class Optimizer {
 					]
 				], owner);
 			}
-			case "control_repeat": {
+			case "control_repeat": { 
+				//For loops are the same speed as while loops in JS so this is fine.
 				let iteration = this.addNewTempVar();
 
 				this.ir.scripts[block[2].script].script.push(["data_changevariableby", iteration, 1]);
@@ -1205,6 +1210,16 @@ class Optimizer {
 					[
 						"control_while", 
 						["operator_lt", ["data_variable", iteration], block[1]],
+						block[2]
+					]
+				], owner);
+			}
+			case "control_while": {
+				this.ir.scripts[block[2].script].script.splice(0, 0, ["helium_whilecheck", block[1]]);
+
+				return this.simplifyScript([
+					[
+						"helium_while",
 						block[2]
 					]
 				], owner);
@@ -1411,7 +1426,7 @@ class Optimizer {
 		return newBlock;
 	}
 
-	optimizeBasicBlock(script) {
+	optimizeBasicBlock(script, definedVars) {
 		//Compile-time evaluation
 		let constantValues = new Map();
 		let scriptEvaluated = [];
@@ -1421,8 +1436,23 @@ class Optimizer {
 
 			block = this.replaceConstantValuesBlock(block, constantValues);
 			
-			if ((opcode === 'control_while') && (block[1].type === 'value')) {
-				let castCondition = castToBoolean(block[1].val);
+			if (opcode === 'helium_while') {
+				let innerscript = block[1].val.script;
+				let castCondition = false;
+				let conditionIsFixed = false;
+				for (let j = 0; j < this.ir.ssa[innerscript].length; j++) {
+					if (!(this.ir.ssa[innerscript][j][0] === 'helium_whilecheck')) continue;
+					if (this.ir.ssa[innerscript][j][1].type !== 'value') break;
+
+					castCondition = castToBoolean(this.ir.ssa[innerscript][j][1].val);
+					conditionIsFixed = true;
+					break;
+				}
+
+				if (!conditionIsFixed) {
+					scriptEvaluated.push(block);
+					continue;
+				}
 				if (castCondition) {
 					scriptEvaluated.push(block);
 					break;
@@ -1433,6 +1463,21 @@ class Optimizer {
 			if (opcode !== 'helium_val') {
 				scriptEvaluated.push(block);
 				continue;
+			}
+
+			if ((Array.isArray(block[2])) && (block[2][0] === 'helium_phi')) {
+				if (block[2][1].val === block[2][2].val) {
+					block[2] = block[2][1];
+				} else {
+					let firstDefined = definedVars.has(block[2][1].val);
+					let secondDefined = definedVars.has(block[2][2].val);
+
+					//console.log(firstDefined, secondDefined, block);
+
+					if (!(firstDefined || secondDefined)) continue;
+					if (!firstDefined) block[2] = block[2][2];
+					if (!secondDefined) block[2] = block[2][1];
+				}
 			}
 
 			if (typeof block[2].val !== 'undefined') {
@@ -1595,7 +1640,7 @@ class Optimizer {
 				}
 			}
 		}
-		console.log(structuredClone(this.ir.scripts));
+		//console.log(structuredClone(this.ir.scripts));
 
 		//Replace variable names with IDs
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1642,7 +1687,7 @@ class Optimizer {
 		}
 
 		//Add yield points
-		console.log(structuredClone(this.ir.scripts), this.ir);
+		//console.log(structuredClone(this.ir.scripts), this.ir);
 
 		let numSprites = this.ir.sprites.length;
 		for (let i = 0; i < numSprites; i++) {
@@ -1695,7 +1740,7 @@ class Optimizer {
 		}
 
 		//highlight start/end of basic blocks
-		console.log(JSON.stringify(this.ir.ssa));
+		//console.log(JSON.stringify(this.ir.ssa));
 		for (let i = 0; i < this.ir.ssa.length; i++) {
 			let script = this.ir.ssa[i];
 			if (doesScriptDoAnything(script)) {
@@ -1737,8 +1782,6 @@ class Optimizer {
 
 			let script = this.ir.ssa[i];
 			for (let j = 0; j < script.length; j++) {
-				this.ir.ssa[i][j] = this.replaceVariableCallsBlock(this.ir.ssa[i][j], variations);
-
 				let block = script[j];
 				let opcode = block[0];
 
@@ -1829,8 +1872,8 @@ class Optimizer {
 							this.numVars++;
 						}
 						break;
-					case 'control_while':
-						innerscript = block[2].val.script;
+					case 'helium_while':
+						innerscript = block[1].val.script;
 						innerscriptendvariations = endingVariations[innerscript];
 
 						startingVariations[innerscript] = variations;
@@ -1856,7 +1899,12 @@ class Optimizer {
 							this.numVars++;
 						}
 
-						this.ir.ssa[innerscript].splice(0, 0, ...newBlocks);
+						this.ir.ssa[innerscript].splice(0, 0, ...structuredClone(newBlocks));
+
+						for (let k = 0; k < newBlocks.length; k++) {
+							newBlocks[k][1] = this.numVars;
+							this.numVars++;
+						}
 
 						//console.log(block, opcode, newBlocks, this.ir.ssa[innerscript], innerscriptendvariations);
 						break;
@@ -1936,6 +1984,8 @@ class Optimizer {
 						if (this.isLoop(block)) console.error("Helium does not support this block", block);
 				}
 
+				this.ir.ssa[i][j] = this.replaceVariableCallsBlock(this.ir.ssa[i][j], variations);
+
 				if (newBlocks.length === 0) continue;
 				this.ir.ssa[i].splice(j+1, 0, ...newBlocks);
 			}
@@ -1988,12 +2038,15 @@ class Optimizer {
 			}
 		}
 
+		console.log(structuredClone(this.ir.ssa));
+
 		//Optimization passes
 		let totalBlocks = 0;
 		let newBlocks = 0;
-		for (let i = 0; i < 1; i++) {
+		for (let i = 0; i < 3; i++) {
 			//Find used variables
 			let usedVars = new Set();
+			let definedVars = new Set();
 			for (let j = 0; j < this.ir.ssa.length; j++) {
 				let script = this.ir.ssa[j];
 				for (let k = 0; k < script.length; k++) {
@@ -2003,10 +2056,15 @@ class Optimizer {
 					for (let l = 0; l < usedVarsBlock.length; l++) {
 						usedVars.add(usedVarsBlock[l]);
 					}
+
+					if (block[0] === 'helium_val') definedVars.add(block[1]);
 				}
 			}
 
-			//Optimize scripts 
+			//console.log(definedVars);
+
+			//Optimize scripts
+			newBlocks = 0;
 			for (let j = this.ir.ssa.length - 1; j >= 0; j--) {
 				let script = this.ir.ssa[j];
 
@@ -2028,20 +2086,17 @@ class Optimizer {
 				}
 
 				//Perform optimizations
-				newScript = this.optimizeBasicBlock(newScript);
+				newScript = this.optimizeBasicBlock(newScript, definedVars);
 				this.ir.ssa[j] = newScript;
 
-				totalBlocks += script.length;
+				if (i === 0) totalBlocks += script.length;
 				newBlocks += newScript.length;
 
 				//console.log(newScript, script);
 			}
 		}
 		
-		for (let i = 0; i < this.ir.ssa.length; i++) {
-			console.log(i, this.ir.scripts[i].owner, this.ir.scripts[i].script, this.ir.ssa[i]);
-		}
-		console.log(100 * (1 - newBlocks/totalBlocks), totalBlocks, newBlocks, oldBlocks);
+		console.log(100 * (1 - newBlocks/totalBlocks), totalBlocks, newBlocks, oldBlocks, structuredClone(this.ir.ssa));
 
 		return this.ir;
 	}
