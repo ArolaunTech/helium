@@ -214,7 +214,7 @@ class Optimizer {
 		this.ir.variables.push({
 			id: newidx,
 			name: "t"+newidx,
-			owner: "Stage",
+			owner: this.ir.stageIndex,
 			value: DEFAULT_TYPE_VALUES[TYPE_BOOLEAN]
 		});
 		return newidx;
@@ -1792,25 +1792,31 @@ class Optimizer {
 		for (let i = 0; i < numVariables; i++) {
 			if (this.ir.variables[i].cloud) console.warn("Cloud variables are not supported by Helium.");
 
+			let value = this.ir.variables[i].value;
+			if (this.ir.variables[i].owner !== this.ir.stageIndex) value = [value];
+
 			this.scriptsJoined[0].push([
 				"data_setvariableto",
 				i,
-				this.ir.variables[i].value
+				value
 			]);
 		}
 
 		for (let i = 0; i < this.ir.lists.length; i++) {
+			let value = this.ir.lists[i].value;
+			if (this.ir.lists[i].owner !== this.ir.stageIndex) value = [value];
+
 			this.scriptsJoined[0].push([
 				"data_setvariableto",
 				i + numVariables,
-				this.ir.lists[i].value
+				value
 			]);
 		}
 
 		console.log(this.scriptsJoined, this.ir.sprites);
 
 		//Split scripts into basic blocks (sequences of blocks that run without yielding)
-		for (let i = 0; i < this.ir.scripts.length; i++) {
+		for (let i = this.ir.scripts.length - 1; i >= 0; i--) {
 			let script = this.ir.scripts[i].script;
 			let basicBlocks = [];
 		}
