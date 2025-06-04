@@ -70,6 +70,21 @@ class Optimizer {
 		return this.isLoop(block);
 	}
 
+	canSkip(block, warp) {
+		if (this.hasWait(block)) return true;
+
+		let opcode = block[0];
+		switch (opcode) {
+			case "control_stop":
+				return block[1] !== 'other scripts in sprite';
+			case "procedures_call":
+				if (warp) return false;
+				return !block[block.length - 1].warp;
+		}
+
+		return false;
+	}
+
 	replaceVariableNamesBlock(block, owner) {
 		let opcode = block[0];
 		let newBlock = [opcode];
@@ -486,6 +501,18 @@ class Optimizer {
 					["helium_yposition"]
 				], owner);
 			}
+			case "helium_xposition": {
+				return this.simplifyReporterStack([
+					"data_variable",
+					this.projectVars["spritex" + owner]
+				], owner);
+			}
+			case "helium_yposition": {
+				return this.simplifyReporterStack([
+					"data_variable",
+					this.projectVars["spritey" + owner]
+				], owner);
+			}
 			case "operator_subtract": {
 				return this.simplifyReporterStack([
 					"operator_add",
@@ -806,7 +833,25 @@ class Optimizer {
 			}
 			case "helium_setscaleto": {
 				return this.simplifyScript([
-					["data_setvariableto", this.projectVars["spritescale" + owner], block[1]]
+					["data_setvariableto", this.projectVars["spritescale" + owner], block[1]],
+					["helium_requestRedraw"]
+				], owner);
+			}
+			case "motion_setx": {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars["spritex" + owner], ["helium_number", block[1]]],
+					["helium_requestRedraw"]
+				], owner);
+			}
+			case "motion_sety": {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars["spritey" + owner], ["helium_number", block[1]]],
+					["helium_requestRedraw"]
+				], owner);
+			}
+			case "helium_requestRedraw": {
+				return this.simplifyScript([
+					["data_setvariableto", this.projectVars.redrawRequested, true]
 				], owner);
 			}
 			case "sound_cleareffects": {
@@ -1255,7 +1300,7 @@ class Optimizer {
 					["sound_play", block[1]],
 					["control_wait", ["helium_soundlength", block[1]]]
 				], owner);
-			}
+			}		
 			default:
 				return [block];
 		}
@@ -1426,7 +1471,7 @@ class Optimizer {
 		return newBlock;
 	}
 
-	optimizeBasicBlock(script, definedVars) {
+	optimizeBasicBlock(script, definedVars, usedinPhiVars) {
 		//Compile-time evaluation
 		let constantValues = new Map();
 		let scriptEvaluated = [];
@@ -1459,6 +1504,35 @@ class Optimizer {
 				}
 				continue;
 			}
+
+			if ((opcode === 'control_if') && (block[1].type === 'value')) {
+				let castCondition = castToBoolean(block[1].val);
+				if (castCondition) {
+					let innerscript = block[2].val.script;
+					for (let j = 0; j < this.ir.ssa[innerscript].length; j++) {
+						scriptEvaluated.push(this.ir.ssa[innerscript][j]);
+					}
+				}
+				continue;
+			}
+
+			if ((opcode === 'control_if_else') && (block[1].type === 'value')) {
+				let castCondition = castToBoolean(block[1].val);
+				if (castCondition) {
+					let innerscript = block[2].val.script;
+					for (let j = 0; j < this.ir.ssa[innerscript].length; j++) {
+						scriptEvaluated.push(this.ir.ssa[innerscript][j]);
+					}
+				} else {
+					let innerscript = block[3].val.script;
+					for (let j = 0; j < this.ir.ssa[innerscript].length; j++) {
+						scriptEvaluated.push(this.ir.ssa[innerscript][j]);
+					}
+				}
+				continue;
+			}
+
+			if (opcode === 'helium_nop') continue;
 
 			if (opcode !== 'helium_val') {
 				scriptEvaluated.push(block);
@@ -1553,20 +1627,36 @@ class Optimizer {
 					}
 					break;
 				case 'operator_add':
-					if ((typeof block[2][1].val !== 'undefined') && (castToNumber(block[2][1].val) === 0)) {
+					if ((typeof block[2][1].val !== 'undefined') && (block[2][1].type === 'value') && (castToNumber(block[2][1].val) === 0)) {
 						block[2] = block[2][2];
 						break;
 					}
-					if ((typeof block[2][2].val !== 'undefined') && (castToNumber(block[2][2].val) === 0))
+					if ((typeof block[2][2].val !== 'undefined') && (block[2][2].type === 'value') && (castToNumber(block[2][2].val) === 0)) {
 						block[2] = block[2][1];
+						break;
+					}
+					if (block[2][2].type === 'value') {
+						let temp = block[2][2];
+						block[2][2] = block[2][1];
+						block[2][1] = temp;
+						break;
+					}
 					break;
 				case 'operator_multiply':
-					if (castToNumber(block[2][1].val) === 1) {
+					if ((block[2][1].type === 'value') && (castToNumber(block[2][1].val) === 1)) {
 						block[2] = block[2][2];
 						break;
 					}
-					if (castToNumber(block[2][2].val) === 1)
+					if ((block[2][2].type === 'value') && (castToNumber(block[2][2].val) === 1)) {
 						block[2] = block[2][1];
+						break;
+					}
+					if (block[2][2].type === 'value') {
+						let temp = block[2][2];
+						block[2][2] = block[2][1];
+						block[2][1] = temp;
+						break;
+					}
 					break;
 				default:
 					//console.log(i, block, script, valueOpcode);
@@ -1575,12 +1665,11 @@ class Optimizer {
 			if (addBlock) scriptEvaluated.push(block);
 		}
 
-		//console.log(constantValues);
-
 		//Removing redundant variables
 		let scriptNoRedundantVars = [];
 		let replaceVariations = new Map();
 		let variationDefinitions = new Map();
+
 
 		for (let i = 0; i < scriptEvaluated.length; i++) {
 			let block = scriptEvaluated[i];
@@ -1595,11 +1684,13 @@ class Optimizer {
 			if (replaceVariations.has(block[1])) continue;
 			if (variationDefinitions.has(block[2])) {
 				replaceVariations.set(block[1], variationDefinitions.get(block[2]));
-				continue;
+
+				if (block.length === 4) continue;
 			}
 			if ((typeof block[2].val !== 'undefined') && block[2].type === "var") {
 				replaceVariations.set(block[1], block[2].val);
-				continue;
+				
+				if (block.length === 4) continue;
 			}
 
 			variationDefinitions.set(block[2], block[1]);
@@ -1653,13 +1744,20 @@ class Optimizer {
 		this.projectVars.timervar = this.addNewTempVar();
 		this.projectVars.answered = this.addNewTempVar();
 		this.projectVars.tempo = this.addNewTempVar();
+		this.projectVars.redrawRequested = this.addNewTempVar();
 		
-		let spriteScales = [];
-		for (let i = 0; i < this.ir.sprites.length; i++) {
+		for (let i = 1; i < this.ir.sprites.length; i++) {
 			let spriteScale = this.addNewTempVar();
+			let x = this.addNewTempVar();
+			let y = this.addNewTempVar();
 
-			spriteScales.push(spriteScale);
+			this.ir.variables[spriteScale].value = this.ir.sprites[i].size/100;
+			this.ir.variables[x].value = this.ir.sprites[i].x;
+			this.ir.variables[y].value = this.ir.sprites[i].y;
+
 			this.projectVars["spritescale" + i] = spriteScale;
+			this.projectVars["spritex" + i] = x;
+			this.projectVars["spritey" + i] = y;
 		}
 
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1686,51 +1784,38 @@ class Optimizer {
 			oldBlocks += this.ir.scripts[i].script.length;
 		}
 
-		//Add yield points
-		//console.log(structuredClone(this.ir.scripts), this.ir);
+		//Merge all scripts into one
+		this.scriptsJoined = [[]];
 
-		let numSprites = this.ir.sprites.length;
-		for (let i = 0; i < numSprites; i++) {
-			this.ir.scripts.push({
-				owner: i,//this.ir.scripts[i].owner,
-				script: [
-					["helium_end"],
-					["helium_yield"],
-					["helium_start"],
-				]
-			});
+		//Set variables and lists
+		let numVariables = this.ir.variables.length;
+		for (let i = 0; i < numVariables; i++) {
+			if (this.ir.variables[i].cloud) console.warn("Cloud variables are not supported by Helium.");
+
+			this.scriptsJoined[0].push([
+				"data_setvariableto",
+				i,
+				this.ir.variables[i].value
+			]);
 		}
+
+		for (let i = 0; i < this.ir.lists.length; i++) {
+			this.scriptsJoined[0].push([
+				"data_setvariableto",
+				i + numVariables,
+				this.ir.lists[i].value
+			]);
+		}
+
+		console.log(this.scriptsJoined, this.ir.sprites);
+
+		//Split scripts into basic blocks (sequences of blocks that run without yielding)
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			let script = this.ir.scripts[i].script;
-			for (let j = 0; j < script.length; j++) {
-				let block = script[j];
-
-				if (!this.hasWait(block)) continue;
-
-				let innerScriptIndex = this.ir.scripts.length - numSprites + this.ir.scripts[i].owner;
-
-				if (!this.isLoop(block)) {
-					this.ir.scripts[i].script.splice(j, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
-					this.ir.scripts[i].script.splice(j+2, 0, ["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
-					j++;
-					continue;
-				}
-
-				let innerscript = -1;
-				for (let k = 1; k < block.length; k++) {
-					if (typeof block[k].script === 'undefined') continue;
-					innerscript = block[k].script;
-					break;
-				}
-				if (innerscript === -1) continue;
-
-				this.ir.scripts[innerscript].script.push(["control_if", ["helium_mustyield"], {script: innerScriptIndex}]);
-				//console.log(this.ir.scripts[i].script, script, block, i, j, innerscript);
-			}
-			//console.log(this.ir.scripts[i].script);
+			let basicBlocks = [];
 		}
-		console.log(structuredClone(this.ir.scripts));
 
+		/*
 		//SSA (not really)
 		this.ir.ssa = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) {
@@ -1764,6 +1849,7 @@ class Optimizer {
 		//console.log(structuredClone(this.ir.ssa));
 
 		/*===== Find starting and ending variations for all scripts while generating phi nodes =====*/
+		/*
 		let totalVariables = this.ir.variables.length + this.ir.lists.length;
 
 		let startingVariations = [];
@@ -2040,12 +2126,27 @@ class Optimizer {
 
 		console.log(structuredClone(this.ir.ssa));
 
+		//Add @ computation
+		for (let i = 0; i < this.ir.ssa.length; i++) {
+			for (let j = 0; j < this.ir.ssa[i].length; j++) {
+				let opcode = this.ir.ssa[i][j][0];
+
+				if (opcode !== 'helium_val') continue;
+
+				
+			}
+		}
+
 		//Optimization passes
 		let totalBlocks = 0;
-		let newBlocks = 0;
-		for (let i = 0; i < 3; i++) {
+		for (let i = 0; i < this.ir.ssa.length; i++) {
+			totalBlocks += this.ir.ssa[i].length;
+		}
+
+		for (let i = 0; i < 1; i++) {
 			//Find used variables
 			let usedVars = new Set();
+			let usedinPhiVars = new Set();
 			let definedVars = new Set();
 			for (let j = 0; j < this.ir.ssa.length; j++) {
 				let script = this.ir.ssa[j];
@@ -2057,14 +2158,21 @@ class Optimizer {
 						usedVars.add(usedVarsBlock[l]);
 					}
 
-					if (block[0] === 'helium_val') definedVars.add(block[1]);
+					if (block[0] === 'helium_val') {
+						definedVars.add(block[1]);
+
+						if (block[2][0] === 'helium_phi') {
+							for (let l = 0; l < usedVarsBlock.length; l++) {
+								usedinPhiVars.add(usedVarsBlock[l]);
+							}
+						}
+					}
 				}
 			}
 
 			//console.log(definedVars);
 
 			//Optimize scripts
-			newBlocks = 0;
 			for (let j = this.ir.ssa.length - 1; j >= 0; j--) {
 				let script = this.ir.ssa[j];
 
@@ -2086,18 +2194,20 @@ class Optimizer {
 				}
 
 				//Perform optimizations
-				newScript = this.optimizeBasicBlock(newScript, definedVars);
+				newScript = this.optimizeBasicBlock(newScript, definedVars, usedinPhiVars);
 				this.ir.ssa[j] = newScript;
-
-				if (i === 0) totalBlocks += script.length;
-				newBlocks += newScript.length;
 
 				//console.log(newScript, script);
 			}
 		}
+
+		let newBlocks = 0;
+		for (let i = 0; i < this.ir.ssa.length; i++) {
+			newBlocks += this.ir.ssa[i].length;
+		}
 		
 		console.log(100 * (1 - newBlocks/totalBlocks), totalBlocks, newBlocks, oldBlocks, structuredClone(this.ir.ssa));
-
+		*/
 		return this.ir;
 	}
 };
