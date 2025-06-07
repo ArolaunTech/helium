@@ -178,22 +178,22 @@ class Optimizer {
 			case "data_deletealloflist":
 			case "data_showlist":
 			case "data_hidelist": {
-				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists) + this.ir.variables.length];
+				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists)];
 			}
 			case "data_addtolist":
 			case "data_itemoflist":
 			case "data_deleteoflist": {
-				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists) + this.ir.variables.length];
+				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists)];
 			}
 			case "data_insertatlist": {
-				return [opcode, newBlock[1], newBlock[2], this.findVar(newBlock[3], owner, this.ir.lists) + this.ir.variables.length];
+				return [opcode, newBlock[1], newBlock[2], this.findVar(newBlock[3], owner, this.ir.lists)];
 			}
 			case "data_replaceitemoflist": {
-				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists) + this.ir.variables.length, newBlock[3]];
+				return [opcode, newBlock[1], this.findVar(newBlock[2], owner, this.ir.lists), newBlock[3]];
 			}
 			case "data_itemnumoflist":
 			case "data_listcontainsitem": {
-				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists) + this.ir.variables.length, newBlock[2]];
+				return [opcode, this.findVar(newBlock[1], owner, this.ir.lists), newBlock[2]];
 			}
 		}
 		return newBlock;
@@ -534,12 +534,46 @@ class Optimizer {
 			}
 			case "data_lengthoflist": {
 				return this.simplifyReporterStack([
-					"helium_listlength", ["data_variable", block[1]]
+					"helium_listlength", ["helium_data_list", block[1]]
+				], owner);
+			}
+			case "data_listcontents": {
+				return this.simplifyReporterStack([
+					"helium_arraytocontents", ["helium_data_list", block[1]]
 				], owner);
 			}
 			case "argument_reporter_boolean": {
 				if (block[1] === 'is compiled?') return true;
+				if (block[1] === 'is Helium?') return true;
 				return block;
+			}
+			case "data_variable": {		
+				if (this.ir.variables[block[1]].owner === this.ir.stageIndex) {
+					//Variable is actually a variable
+					return ["helium_getvariablevalue", block[1]];
+				}
+				//Variable is actually a list
+				return ["helium_getitemofarray", ["helium_cloneIndex"], ["helium_getvariablevalue", block[1]]];
+			}
+			case "helium_data_list": {
+				if (this.ir.lists[block[1]].owner === this.ir.stageIndex) {
+					//List is actually a list
+					return ["helium_getlistvalue", block[1]];
+				}
+				//List is actually a 2D array
+				return ["helium_getitemofarray", ["helium_cloneIndex"], ["helium_getlistvalue", block[1]]];
+			}
+			case "helium_cloneIndex": {
+				return ["data_variable", this.projectVars.cloneID];
+			}
+			case "data_itemoflist": {
+				return ["helium_getitemofarray", block[1], ["helium_data_list", block[2]]];
+			}
+			case "data_itemnumoflist": {
+				return ["helium_itemnumoflist", ["helium_data_list", block[1]], block[2]];
+			}
+			case "data_listcontainsitem": {
+				return ["helium_listcontainsitem", ["helium_data_list", block[1]], block[2]];
 			}
 			default:
 				return block;
@@ -1300,7 +1334,15 @@ class Optimizer {
 					["sound_play", block[1]],
 					["control_wait", ["helium_soundlength", block[1]]]
 				], owner);
-			}		
+			}
+			//Variable -> helium arrays
+			//Lists -> helium 2D arrays
+			case "data_setvariableto":
+			case "data_addtolist":
+			case "data_deleteoflist":
+			case "data_deletealloflist":
+			case "data_insertatlist":
+			case "data_replaceitemoflist":
 			default:
 				return [block];
 		}
@@ -1713,13 +1755,10 @@ class Optimizer {
 			let script = this.ir.scripts[i].script;
 			for (let j = 0; j < script.length; j++) {
 				let block = script[j];
-				//if (block[0].slice(0, 7) === "control") {
-				//	console.log(JSON.stringify(block));
-				//}
+
 				for (let k = 1; k < block.length; k++) {
-					if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) {
-						continue;
-					}
+					if (!(Array.isArray(block[k]) && Array.isArray(block[k][0]))) continue;
+
 					if (internalscriptset.has(block[k])) {
 						this.ir.scripts[i].script[j][k] = {script: internalscriptmap.get(block[k])};
 					} else {
@@ -1740,16 +1779,27 @@ class Optimizer {
 			this.ir.scripts[i].script = this.replaceVariableNames(script, this.ir.scripts[i].owner);
 		}
 
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			let script = this.ir.scripts[i].script;
+			//console.log(script, i, this.ir.scripts[i].owner);
+			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
+		}
+
 		//Remove wait blocks
 		this.projectVars.timervar = this.addNewTempVar();
 		this.projectVars.answered = this.addNewTempVar();
 		this.projectVars.tempo = this.addNewTempVar();
 		this.projectVars.redrawRequested = this.addNewTempVar();
+		this.projectVars.cloneID = this.addNewTempVar();
 		
 		for (let i = 1; i < this.ir.sprites.length; i++) {
 			let spriteScale = this.addNewTempVar();
 			let x = this.addNewTempVar();
 			let y = this.addNewTempVar();
+
+			this.ir.variables[spriteScale].owner = i;
+			this.ir.variables[x].owner = i;
+			this.ir.variables[y].owner = i;
 
 			this.ir.variables[spriteScale].value = this.ir.sprites[i].size/100;
 			this.ir.variables[x].value = this.ir.sprites[i].x;
@@ -1760,6 +1810,7 @@ class Optimizer {
 			this.projectVars["spritey" + i] = y;
 		}
 
+		//Simplify scripts
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			this.ir.scripts[i].script = this.simplifyScript(this.ir.scripts[i].script, this.ir.scripts[i].owner);
 		}
@@ -1771,13 +1822,6 @@ class Optimizer {
 		opcodes = [...new Set(opcodes)];
 		console.log(JSON.stringify(opcodes), opcodes.length);
 		//console.log(structuredClone(this.ir.scripts));
-
-		//Replace list names with IDs
-		for (let i = 0; i < this.ir.scripts.length; i++) {
-			let script = this.ir.scripts[i].script;
-			//console.log(script, i, this.ir.scripts[i].owner);
-			this.ir.scripts[i].script = this.replaceListNames(script, this.ir.scripts[i].owner);
-		}
 
 		let oldBlocks = 0;
 		for (let i = 0; i < this.ir.scripts.length; i++) {
