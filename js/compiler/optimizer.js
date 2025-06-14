@@ -78,8 +78,9 @@ class Optimizer {
 			case "control_stop":
 				return block[1] !== 'other scripts in sprite';
 			case "procedures_call":
-				if (warp) return false;
-				return !block[block.length - 1].warp;
+				/*if (warp) return false;
+				return !block[block.length - 1].warp;*/
+				return false; //Warp blocks can still yield, may replace this with something else later
 		}
 
 		return false;
@@ -567,7 +568,7 @@ class Optimizer {
 				return ["data_variable", this.projectVars.cloneID];
 			}
 			case "data_itemoflist": {
-				return ["helium_getitemofarray", block[1], ["helium_data_list", block[2]]];
+				return ["helium_getitemofarray", ["operator_subtract", block[1], 1], ["helium_data_list", block[2]]];
 			}
 			case "data_itemnumoflist": {
 				return ["helium_itemnumoflist", ["helium_data_list", block[1]], block[2]];
@@ -1793,21 +1794,17 @@ class Optimizer {
 		this.projectVars.cloneID = this.addNewTempVar();
 		
 		for (let i = 1; i < this.ir.sprites.length; i++) {
-			let spriteScale = this.addNewTempVar();
-			let x = this.addNewTempVar();
-			let y = this.addNewTempVar();
+			console.log(this.ir.sprites[i]);
+			for (const property in this.ir.sprites[i]) {
+				if (!this.ir.sprites[i].hasOwnProperty(property)) continue;
+				if (['isStage', 'name'].includes(property)) continue;
 
-			this.ir.variables[spriteScale].owner = i;
-			this.ir.variables[x].owner = i;
-			this.ir.variables[y].owner = i;
+				let propertyvar = this.addNewTempVar();
 
-			this.ir.variables[spriteScale].value = this.ir.sprites[i].size/100;
-			this.ir.variables[x].value = this.ir.sprites[i].x;
-			this.ir.variables[y].value = this.ir.sprites[i].y;
-
-			this.projectVars["spritescale" + i] = spriteScale;
-			this.projectVars["spritex" + i] = x;
-			this.projectVars["spritey" + i] = y;
+				this.ir.variables[propertyvar].owner = i;
+				this.ir.variables[propertyvar].value = [this.ir.sprites[i][property]];
+				this.projectVars["sprite" + property + i] = propertyvar;
+			}
 		}
 
 		//Simplify scripts
@@ -1859,10 +1856,65 @@ class Optimizer {
 
 		console.log(this.scriptsJoined, this.ir.sprites);
 
-		//Split scripts into basic blocks (sequences of blocks that run without yielding)
+		//Split scripts into basic blocks (sequences of blocks that run linearly and without yielding)
+		let basicBlocks = [];
+		for (let i = 0; i < this.ir.scripts.length; i++) basicBlocks.push([]);
 		for (let i = this.ir.scripts.length - 1; i >= 0; i--) {
 			let script = this.ir.scripts[i].script;
-			let basicBlocks = [];
+			let basicBlocksScript = [];
+
+			let basicBlockStart = 1;
+			for (let j = 1; j < script.length; j++) {
+				let block = script[j];
+				let opcode = block[0];
+
+				switch (opcode) {
+					case 'control_if':
+					case 'control_if_else':
+					case "control_forever":
+					case "control_repeat_until":
+					case "control_for_each":
+					case "control_while":
+					case "motion_glideto":
+					case "motion_glidesecstoxy":
+					case "looks_sayforsecs":
+					case "looks_thinkforsecs":
+					case "looks_switchbackdroptoandwait":
+					case "sound_playuntildone":
+					case "event_broadcastandwait":
+					case "control_wait":
+					case "control_wait_until":
+					case "sensing_askandwait":
+					case "music_playDrumForBeats":
+					case "music_restForBeats":
+					case "music_playNoteForBeats":
+					case "text2speech_speakAndWait":
+					case "ev3_motorTurnClockwise":
+					case "ev3_motorTurnCounterClockwise":
+					case "ev3_beep":
+					case "boost_motorOnFor":
+					case "boost_motorOnForRotation":
+					case "wedo2_motorOnFor":
+					case "music_midiPlayDrumForBeats":
+					case "wedo2_playNoteFor":
+					case "procedures_call":
+						if (basicBlockStart !== j) basicBlocksScript.push([basicBlockStart, j]);
+						basicBlockStart = j + 1;
+						break;
+					case "control_stop":
+						if (basicBlockStart !== j) basicBlocksScript.push([basicBlockStart, j]);
+						if (block[1] === 'other scripts in sprite') {
+							basicBlockStart = j + 1;
+						}
+				}
+				//console.log(block, opcode);
+			}
+
+			if (basicBlockStart < script.length) basicBlocksScript.push([basicBlockStart, script.length]);
+
+			console.log(basicBlocksScript);
+
+			basicBlocks[i] = basicBlocksScript;
 		}
 
 		/*
