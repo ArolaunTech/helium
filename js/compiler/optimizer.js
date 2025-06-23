@@ -70,7 +70,7 @@ class Optimizer {
 		return this.isLoop(block);
 	}
 
-	canSkip(block, warp) {
+	canSkip(block) {
 		if (this.hasWait(block)) return true;
 
 		let opcode = block[0];
@@ -80,7 +80,7 @@ class Optimizer {
 			case "procedures_call":
 				/*if (warp) return false;
 				return !block[block.length - 1].warp;*/
-				return false; //Warp blocks can still yield, may replace this with something else later
+				return true; //Warp blocks can still yield, may replace this with something else later
 		}
 
 		return false;
@@ -1871,39 +1871,12 @@ class Optimizer {
 				switch (opcode) {
 					case 'control_if':
 					case 'control_if_else':
-					case "control_forever":
-					case "control_repeat_until":
-					case "control_for_each":
-					case "control_while":
-					case "motion_glideto":
-					case "motion_glidesecstoxy":
-					case "looks_sayforsecs":
-					case "looks_thinkforsecs":
-					case "looks_switchbackdroptoandwait":
-					case "sound_playuntildone":
-					case "event_broadcastandwait":
-					case "control_wait":
-					case "control_wait_until":
-					case "sensing_askandwait":
-					case "music_playDrumForBeats":
-					case "music_restForBeats":
-					case "music_playNoteForBeats":
-					case "text2speech_speakAndWait":
-					case "ev3_motorTurnClockwise":
-					case "ev3_motorTurnCounterClockwise":
-					case "ev3_beep":
-					case "boost_motorOnFor":
-					case "boost_motorOnForRotation":
-					case "wedo2_motorOnFor":
-					case "music_midiPlayDrumForBeats":
-					case "wedo2_playNoteFor":
-					case "procedures_call":
 						if (basicBlockStart !== j) basicBlocksScript.push([basicBlockStart, j]);
 						basicBlockStart = j + 1;
 						break;
-					case "control_stop":
-						if (basicBlockStart !== j) basicBlocksScript.push([basicBlockStart, j]);
-						if (block[1] === 'other scripts in sprite') {
+					default:
+						if (this.canSkip(block)) {
+							if (basicBlockStart !== j) basicBlocksScript.push([basicBlockStart, j]);
 							basicBlockStart = j + 1;
 						}
 				}
