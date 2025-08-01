@@ -1,6 +1,6 @@
 class RendererWebGL {
-	constructor() {
-		this.canvas = document.getElementById("window");
+	constructor(canvas) {
+		this.canvas = canvas;
 		this.gl = this.canvas.getContext("webgl2");
 
 		if (!this.gl) {
@@ -48,4 +48,4 @@ class RendererWebGL {
 	}
 }
 
-var globalRenderer = new RendererWebGL();
+var globalRenderer = new RendererWebGL(document.getElementById("window"));

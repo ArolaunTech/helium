@@ -15,6 +15,8 @@
 		<link rel="manifest" href="images/favicon/site.webmanifest" />
 	</head>
 	<body>
+		<br/>
+
 		<div class="centered">
 			<div class="scratchwidthcontainer">
 				<h1>Helium</h1>
@@ -23,7 +25,7 @@
 
 		<div class="centered">
 			<div class="scratchwidthcontainer">
-				<p>Helium compiles Scratch. Try it out by typing in a URL or uploading a scratchblocks file below.</p>
+				<p>Helium compiles Scratch to make it run fast. Try it out by typing in a URL or uploading a .sb, .sb2, or .sb3 file below.</p>
 			</div>
 		</div>
 
@@ -47,6 +49,18 @@
 		<br/>
 		<div class="centered">
 			<input type="text" value="https://scratch.mit.edu/projects/" id="scratchurl"/>
+		</div>
+		<br/>
+		<div class="centered">
+			<div class="scratchwidthcontainer">
+				<h2>Source code</h2>
+			</div>
+		</div>
+
+		<div class="centered">
+			<div class="scratchwidthcontainer">
+				<p>The source code for Helium can be found <a href="https://github.com/ArolaunTech/helium">here</a>.</p>
+			</div>
 		</div>
 
 		<input type="image" src="images/settings.svg" id="settingsicon" draggable="false"/>
@@ -73,11 +87,10 @@
 		<script type="text/javascript" src="js/compiler/encoders/wasm-encoder.js"></script>
 		<script type="text/javascript" src="js/compiler/encoders/js-encoder.js"></script>
 		<script type="text/javascript" src="js/compiler/lists.js"></script>
-		<script type="text/javascript" src="js/blocks/allblocks.js"></script>
+		<script type="text/javascript" src="js/common/blocks/allblocks.js"></script>
 		<script type="text/javascript" src="js/compiler/irgen.js"></script>
 		<script type="text/javascript" src="js/compiler/optimizer.js"></script>
-		<script type="text/javascript" src="js/projectrunner/jsrunner.js"></script>
-		<script type="text/javascript" src="js/projectrunner/wasmrunner.js"></script>
+		<script type="text/javascript" src="js/projectrunner/projectrunner.js"></script>
 		<script type="text/javascript" src="js/simple/jsencoder.js"></script>
 		<script type="text/javascript" src="js/simple/wasmencoder.js"></script>
 		<script type="text/javascript" src="js/downloader.js"></script>

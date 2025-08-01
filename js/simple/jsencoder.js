@@ -1,4 +1,5 @@
-//Converts the intermediate representation generated in js/compiler/irgen.js into javascript code directly. No optimizations.
+// Converts the intermediate representation generated in js/compiler/irgen.js 
+// into javascript code directly. No optimizations.
 class SimpleIRtoJS {
 	constructor() {
 		this.ir = null;
@@ -47,7 +48,10 @@ class SimpleIRtoJS {
 			//console.log(this.createJSFromScript(this.ir.scripts[i], i));
 		}
 
-		return "";
+		//Construct JS
+		let js = `let p=new Project();p.renderer=globalRenderer;`;
+
+		return js;
 	}
 }
 

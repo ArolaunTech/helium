@@ -16,8 +16,9 @@ input[type="file"] {
 	display: none;
 }
 
-p {
-	font-size: 14px;
+p, a {
+	font-size: 16px;
+	margin-top: 5px;
 }
 
 .centered {
@@ -74,9 +75,14 @@ p {
 
 #scratchurl {
 	width: 480px;
-	border: none;
+	border: 0;
 	font-size: 24px;
 	color: #808080;
+}
+
+#scratchurl:focus {
+	color: #000;
+	outline: none;
 }
 
 #settingsdialog {
