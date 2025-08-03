@@ -7,9 +7,11 @@ class Project {
 	loadIR(ir) {
 		this.renderer.loadIR(ir);
 	}
+
+	runJS(js) {
+		(new Function("project", js))(this);
+	}
 }
 
-function runJS(js) {
-	let f = new Function(js);
-	f();
-}
+var globalProjectRunner = new Project();
+globalProjectRunner.renderer = globalRenderer;

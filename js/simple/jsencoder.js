@@ -49,7 +49,7 @@ class SimpleIRtoJS {
 		}
 
 		//Construct JS
-		let js = `let p=new Project();p.renderer=globalRenderer;`;
+		let js = `project.renderer=0;`;
 
 		return js;
 	}
