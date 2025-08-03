@@ -1,3 +1,7 @@
+:root {
+	--pagewidth: 480px;
+}
+
 * {
 	font-family: "Montserrat", sans-serif;
 }
@@ -12,6 +16,12 @@ h1, h2, h3, h4, h5, h6 {
 	margin-bottom: 0;
 }
 
+hr {
+	width: calc(100% - 40px);
+	margin-top: 5px;
+	margin-bottom: 5px;
+}
+
 input[type="file"] {
 	display: none;
 }
@@ -19,6 +29,7 @@ input[type="file"] {
 p, a {
 	font-size: 16px;
 	margin-top: 5px;
+	margin-bottom: 0px;
 }
 
 .centered {
@@ -29,6 +40,75 @@ p, a {
 .customfileinput {
 	display: inline-block;
 	cursor: pointer;
+	margin-top: 15px;
+}
+
+.customsliderinline {
+	flex-grow: 1;
+}
+
+.customsliderinline {
+	-webkit-appearance: none;
+	appearance: none;
+	height: 10px;
+	border-radius: 5px;
+	background: #d3d3d3;
+	outline: none;
+	opacity: 0.7;
+}
+
+.customsliderinline:hover {
+	opacity: 1;
+}
+
+.customsliderinline:focus {
+	border: 1px solid black;
+}
+
+.customsliderinline::-webkit-slider-thumb {
+	-webkit-appearance: none;
+	appearance: none;
+	width: 13px;
+	height: 20px;
+	border-radius: 4px;
+	background: #888;
+	cursor: pointer;
+}
+
+.customsliderinline::-moz-range-thumb {
+	width: 13px;
+	height: 20px;
+	border-radius: 4px;
+	background: #04AA6D;
+	cursor: pointer;
+}
+
+.dialogentry {
+	margin-left: 30px;
+	margin-top: 10px;
+	width: calc(100% - 50px);
+	display: flex;
+	align-items: center;
+}
+
+.dialogheader {
+	margin-left: 20px;
+	margin-top: 20px;
+	font-weight: bold;
+	font-size: 18px;
+}
+
+.dialoglabel {
+	font-size: 15px;
+	flex-grow: 0;
+	margin-right: 5px;
+	margin-top: 0px;
+}
+
+.dialognumber {
+	font-size: 14px;
+	flex-grow: 0;
+	margin-top: 0px;
 }
 
 .dialogtop {
@@ -39,8 +119,19 @@ p, a {
 	box-sizing: border-box;
 }
 
-.dialogp {
-	margin-left: 10px;
+.plusminusbutton {
+	border: none;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	margin-left: 3px;
+	margin-right: 3px;
+	font-size: 14px;
+	background-color: #fff;
+}
+
+.plusminusbutton:hover {
+	background-color: #ddd;
 }
 
 .scratchicon {
@@ -57,7 +148,7 @@ p, a {
 }
 
 .scratchwidthcontainer {
-	width: 480px;
+	width: var(--pagewidth);
 }
 
 #closesettingsicon {
@@ -74,7 +165,7 @@ p, a {
 }
 
 #scratchurl {
-	width: 480px;
+	width: var(--pagewidth);
 	border: 0;
 	font-size: 24px;
 	color: #808080;
@@ -109,6 +200,6 @@ p, a {
 
 #window {
 	border: 1px solid #808080;
-	width: 480px;
-	height: 360px;
+	width: var(--pagewidth);
+	height: calc(0.75 * var(--pagewidth));
 }

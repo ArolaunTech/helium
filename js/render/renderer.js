@@ -8,7 +8,7 @@ class RendererWebGL {
 			return;
 		}
 
-
+		
 	}
 
 	compileShader(type, source) {

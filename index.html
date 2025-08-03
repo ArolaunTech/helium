@@ -70,8 +70,19 @@
 				<h2 style="display: inline;">Settings</h2>
 				<input type="image" src="images/cross.svg" id="closesettingsicon" draggable="false"/>
 			</div>
-			<p class="dialogp">#1 is the best one</p>
-			<p class="dialogp">#2 is super bad</p>
+			
+			<p class="dialogheader">Display</p>
+			<hr/>
+
+			<div class="dialogentry">
+				<p class="dialoglabel">Window Scale: </p>
+				<p class="dialognumber" id="windowscaledisplay" style="width: 37px;">1.00x</p>
+				<input type="button" value="-" class="plusminusbutton" id="subtractzoom"/>
+				<input type="range" min="-1" max="1" value="0" step="0.01" class="customsliderinline" id="windowscale"/>
+				<input type="button" value="+" class="plusminusbutton" id="addzoom"/>
+			</div>
+
+			<br/>
 		</dialog>
 
 		<script type="text/javascript" src="js/zip-js/zip-full.min.js"></script>

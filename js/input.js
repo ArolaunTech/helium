@@ -10,6 +10,11 @@ const settings = document.getElementById("settingsicon");
 const settingsDialog = document.getElementById("settingsdialog");
 const closeSettings = document.getElementById("closesettingsicon");
 
+const windowScale = document.getElementById("windowscale");
+const windowScaleDisplay = document.getElementById("windowscaledisplay");
+const minusZoom = document.getElementById("subtractzoom");
+const plusZoom = document.getElementById("addzoom");
+
 const uploadSB = document.getElementById("scratchfileinput");
 
 //Functions
@@ -64,9 +69,32 @@ function uploadFile() {
 	});
 }
 
+function updateWindowScale() {
+	let scaleMult = Math.pow(2, windowScale.value);
+
+	windowScaleDisplay.innerText = `${scaleMult.toFixed(2)}x`;
+	document.querySelector(":root").style.setProperty('--pagewidth', `${scaleMult * 480}px`);
+}
+
+function lowerZoom() {
+	windowScale.value -= 0.01;
+
+	updateWindowScale();
+}
+
+function increaseZoom() {
+	windowScale.value += 0.01;
+
+	updateWindowScale();
+}
+
 //Events
 pause.addEventListener("click", togglePauseButton);
 settings.addEventListener("click", openSettingsDialog);
 closeSettings.addEventListener("click", closeSettingsDialog);
+
+windowScale.addEventListener("input", updateWindowScale);
+minusZoom.addEventListener("click", lowerZoom);
+plusZoom.addEventListener("click", increaseZoom);
 
 uploadSB.addEventListener("change", uploadFile);
