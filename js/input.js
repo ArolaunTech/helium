@@ -83,7 +83,7 @@ function lowerZoom() {
 }
 
 function increaseZoom() {
-	windowScale.value += 0.01;
+	windowScale.value = 0.01 + parseFloat(windowScale.value);
 
 	updateWindowScale();
 }
