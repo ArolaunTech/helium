@@ -88,6 +88,20 @@ function increaseZoom() {
 	updateWindowScale();
 }
 
+function fixUrl() {
+	const prefix = "https://scratch.mit.edu/projects/";
+
+	if (urlInput.value.length <= prefix.length) {
+		urlInput.value = prefix;
+		return;
+	}
+
+	if (isNaN(urlInput.value[urlInput.value.length - 1])) {
+		urlInput.value = urlInput.value.slice(0, -1);
+		return;
+	}
+}
+
 //Events
 pause.addEventListener("click", togglePauseButton);
 settings.addEventListener("click", openSettingsDialog);
@@ -98,3 +112,5 @@ minusZoom.addEventListener("click", lowerZoom);
 plusZoom.addEventListener("click", increaseZoom);
 
 uploadSB.addEventListener("change", uploadFile);
+
+urlInput.addEventListener("input", fixUrl);

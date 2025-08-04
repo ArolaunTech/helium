@@ -1794,7 +1794,7 @@ class Optimizer {
 		this.projectVars.cloneID = this.addNewTempVar();
 		
 		for (let i = 1; i < this.ir.sprites.length; i++) {
-			console.log(this.ir.sprites[i]);
+			//console.log(this.ir.sprites[i]);
 			for (const property in this.ir.sprites[i]) {
 				if (!this.ir.sprites[i].hasOwnProperty(property)) continue;
 				if (['isStage', 'name'].includes(property)) continue;
@@ -1854,8 +1854,6 @@ class Optimizer {
 			]);
 		}
 
-		console.log(this.scriptsJoined, this.ir.sprites);
-
 		//Split scripts into basic blocks (sequences of blocks that run linearly and without yielding)
 		let basicBlocks = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) basicBlocks.push([]);
@@ -1885,10 +1883,12 @@ class Optimizer {
 
 			if (basicBlockStart < script.length) basicBlocksScript.push([basicBlockStart, script.length]);
 
-			console.log(basicBlocksScript);
+			console.log(basicBlocksScript, script);
 
 			basicBlocks[i] = basicBlocksScript;
 		}
+
+		console.log(this.scriptsJoined);
 
 		/*
 		//SSA (not really)
