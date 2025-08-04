@@ -82,47 +82,175 @@ async function decodeScratch2or3Project(arr) {
 		let version = 3;
 		if (typeof obj.objName === 'undefined') {
 			//Scratch 3
+			let numAssets = 0;
+			let loadedAssets = 0;
+
+			//Count assets
+			for (let i = 0; i < obj.targets.length; i++) {
+				if (typeof obj.targets[i].sounds !== 'undefined') {
+					numAssets += obj.targets[i].sounds.length;
+				}
+				if (typeof obj.targets[i].costumes !== 'undefined') {
+					numAssets += obj.targets[i].costumes.length;
+				}
+			}
+
+			//Find data
 			for (let i = 0; i < obj.targets.length; i++) {
 				if (typeof obj.targets[i].sounds !== 'undefined') {
 					for (let j = 0; j < obj.targets[i].sounds.length; j++) {
-						obj.targets[i].sounds[j].data = findFile(files, obj.targets[i].sounds[j].md5ext).data;
+						let sound = obj.targets[i].sounds[j];
+						let file = findFile(files, sound.md5ext);
+						let data = null;
+
+						if (file === null) {
+							setError(`Could not find file associated with the sound ${sound.name}.`);
+						
+							data = await downloadAsset(sound.md5ext);
+						} else {
+							data = file.data;
+						}
+
+						obj.targets[i].sounds[j].data = data;
+						loadedAssets++;
 					}
 				}
 				if (typeof obj.targets[i].costumes !== 'undefined') {
 					for (let j = 0; j < obj.targets[i].costumes.length; j++) {
-						obj.targets[i].costumes[j].data = findFile(files, obj.targets[i].costumes[j].md5ext).data;
+						let costume = obj.targets[i].costumes[j];
+						let file = findFile(files, costume.md5ext);
+						let data = null;
+
+						if (file === null) {
+							setError(`Could not find file associated with the costume ${costume.name}.`);
+							
+							data = await downloadAsset(costume.md5ext);
+						} else {
+							data = file.data;
+						}
+
+						obj.targets[i].costumes[j].data = data;
+						loadedAssets++;
 					}
 				}
 			}
 		} else {
 			//Scratch 2
 			version = 2;
+
+			let numAssets = 0;
+			let loadedAssets = 0;
+
+			//Count asssets
+			if (typeof obj.sounds !== 'undefined') {
+				numAssets += obj.sounds.length;
+			}
+			if (typeof obj.costumes !== 'undefined') {
+				numAssets += obj.costumes.length;
+			}
+			if (typeof obj.children !== 'undefined') {
+				for (let i = 0; i < obj.children.length; i++) {
+					if (typeof obj.children[i].costumes !== 'undefined') {
+						numAssets += obj.children[i].costumes.length;
+					}
+					if (typeof obj.children[i].sounds !== 'undefined') {
+						numAssets += obj.children[i].sounds.length;
+					}
+				}
+			}
+			if (typeof obj.penLayerMD5 !== 'undefined') numAssets++;
+
+			//Find data
 			if (typeof obj.sounds !== 'undefined') {
 				for (let i = 0; i < obj.sounds.length; i++) {
-					obj.sounds[i].data = findFile(files, obj.sounds[i].md5).data;
+					let sound = obj.sounds[i];
+					let file = findFile(files, sound.md5);
+					let data = null;
+
+					if (file === null) {
+						setError(`Could not find file associated with the sound ${sound.name}`);
+
+						data = await downloadAsset(sound.md5);
+					} else {
+						data = file.data;
+					}
+
+					obj.sounds[i].data = data;
+					loadedAssets++;
 				}
 			}
 			if (typeof obj.costumes !== 'undefined') {
 				for (let i = 0; i < obj.costumes.length; i++) {
-					obj.costumes[i].data = findFile(files, obj.costumes[i].baseLayerMD5).data;
+					let costume = obj.costumes[i];
+					let file = findFile(files, costume.baseLayerMD5);
+					let data = null;
+
+					if (file === null) {
+						setError(`Could not find file associated with the costume ${costume.name}.`);
+
+						data = await downloadAsset(costume.baseLayerMD5);
+					} else {
+						data = file.data;
+					}
+
+					obj.costumes[i].data = data;
+					loadedAssets++;
 				}
 			}
 			if (typeof obj.children !== 'undefined') {
 				for (let i = 0; i < obj.children.length; i++) {
 					if (typeof obj.children[i].costumes !== 'undefined') {
 						for (let j = 0; j < obj.children[i].costumes.length; j++) {
-							obj.children[i].costumes[j].data = findFile(files, obj.children[i].costumes[j].baseLayerMD5).data;
+							let costume = obj.children[i].costumes[j];
+							let file = findFile(files, costume.baseLayerMD5);
+							let data = null;
+
+							if (file === null) {
+								setError(`Could not find file associated with the costume ${costume.name}.`);
+
+								data = await downloadAsset(costume.baseLayerMD5);
+							} else {
+								data = file.data;
+							}
+
+							obj.children[i].costumes[j].data = data;
+							loadedAssets++;
 						}
 					}
 					if (typeof obj.children[i].sounds !== 'undefined') {
 						for (let j = 0; j < obj.children[i].sounds.length; j++) {
-							obj.children[i].sounds[j].data = findFile(files, obj.children[i].sounds[j].md5).data;
+							let sound = obj.children[i].sounds[j];
+							let file = findFile(files, sound.md5);
+							let data = null;
+
+							if (file === null) {
+								setError(`Could not find file associated with the sound ${sound.name}`);
+
+								data = await downloadAsset(sound.md5);
+							} else {
+								data = file.data;
+							}
+
+							obj.children[i].sounds[j].data = data;
+							loadedAssets++;
 						}
 					}
 				}
 			}
 			if (typeof obj.penLayerMD5 !== 'undefined') {
-				obj.penLayerData = findFile(files, obj.penLayerMD5).data;
+				let file = findFile(files, obj.penLayerMD5);
+				let data = null;
+
+				if (file === null) {
+					setError("Could not find Scratch 2 pen layer data.");
+
+					data = await downloadAsset(obj.penLayerMD5);
+				} else {
+					data = file.data;
+				}
+
+				obj.penLayerData = data;
+				loadedAssets++;
 			}
 		}
 
@@ -194,6 +322,7 @@ async function downloadScratch(id) {
 	if (!response.ok) {
 		setError(`Error fetching project: ${response.status}`);
 	}
+
 	const json = await response.json();
 	const token = await json.project_token;
 	let url = `https://projects.scratch.mit.edu/${id}`;
@@ -212,9 +341,11 @@ async function downloadAsset(md5) {
 	const response = await fetch(`https://assets.scratch.mit.edu/internalapi/asset/${md5}/get/`);
 	if (response.status === 404) {
 		setError(`Error fetching asset: the asset does not exist: ${md5}`);
+		return null;
 	}
 	if (!response.ok) {
 		setError(`Error fetching asset: ${md5}`);
+		return null;
 	}
 	return await response.arrayBuffer();
 }
