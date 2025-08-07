@@ -1,4 +1,6 @@
 class RendererWebGL {
+	program = null;
+
 	constructor(canvas) {
 		this.canvas = canvas;
 		this.gl = this.canvas.getContext("webgl2");
@@ -21,7 +23,7 @@ class RendererWebGL {
 			return shader;
 		}
  
-		console.log(this.gl.getShaderInfoLog(shader));
+		console.warn(this.gl.getShaderInfoLog(shader));
 		this.gl.deleteShader(shader);
 	}
 
@@ -39,8 +41,28 @@ class RendererWebGL {
 			return program;
 		}
 
-		console.log(this.gl.getProgramInfoLog(program));
+		console.warn(this.gl.getProgramInfoLog(program));
 		this.gl.deleteProgram(program);
+
+		return null;
+	}
+
+	loadAndCompileShaders() {
+		Promise.all([
+			fetch("../glsl/sprite.vert", {mode: "same-origin"}),
+			fetch("../glsl/sprite.frag", {mode: "same-origin"})
+		])
+		.then((responses) => Promise.all([responses[0].text(), responses[1].text()]))
+		.then((sources) => {
+			let program = this.createProgram(sources[0], sources[1]);
+
+			if (program === null) {
+				console.error("Unable to create shader program.");
+				return;
+			}
+
+			this.program = program;
+		});
 	}
 
 	loadIR(ir) {
@@ -49,3 +71,4 @@ class RendererWebGL {
 }
 
 var globalRenderer = new RendererWebGL(document.getElementById("window"));
+globalRenderer.loadAndCompileShaders();
