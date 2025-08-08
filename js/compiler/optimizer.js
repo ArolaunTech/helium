@@ -1888,6 +1888,16 @@ class Optimizer {
 			basicBlocks[i] = basicBlocksScript;
 		}
 
+		//Add while and switch to joined scripts
+		this.scriptsJoined[0].push([
+			"helium_while",
+			{script: 1}
+		]);
+
+		this.scriptsJoined.push([
+			["helium_whilecheck", true]
+		]);
+
 		console.log(this.scriptsJoined);
 
 		/*

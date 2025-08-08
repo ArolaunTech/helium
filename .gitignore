@@ -4,5 +4,6 @@ js/debug/wabt/
 js/debug/wasmgenerations/
 scratch-sb1-converter/
 tests/json/
+tests/sbs/
 test files/
 resources/

@@ -66,7 +66,15 @@ class RendererWebGL {
 	}
 
 	loadIR(ir) {
+		console.log(ir);
 
+		for (let i = 0; i < ir.sprites.length; i++) {
+			console.log(ir.sprites[i]);
+
+			for (let j = 0; j < ir.sprites[i].costumes.length; j++) {
+				console.log(ir.sprites[i].costumes[j]);
+			}
+		}
 	}
 }
 

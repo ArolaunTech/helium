@@ -6,8 +6,8 @@ function strictEquality(a, b) {
 	if (a === null || b === null) {return false;} //null does not work with hasOwnProperty
 
 	for (let prop in a) {
-		if (!a.hasOwnProperty(prop))          {continue;}
-		if (!b.hasOwnProperty(prop))          {return false;}
+		if (!(a.hasOwnProperty(prop) || b.hasOwnProperty(prop)))          {continue;}
+		if (!(a.hasOwnProperty(prop) && b.hasOwnProperty(prop)))          {return false;}
 		if (!strictEquality(a[prop],b[prop])) {return false;} //a[prop] and b[prop] could be objects
 	}
 	return true;
