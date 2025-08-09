@@ -104,11 +104,13 @@ async function decodeScratch2or3Project(arr) {
 						let data = null;
 
 						if (file === null) {
-							setError(`Could not find file associated with the sound ${sound.name}.`);
-						
 							data = await downloadAsset(sound.md5ext);
 						} else {
 							data = file.data;
+						}
+
+						if (data === null) {
+							setError(`Could not find file associated with the sound ${sound.name}.`);
 						}
 
 						obj.targets[i].sounds[j].data = data;
@@ -122,11 +124,13 @@ async function decodeScratch2or3Project(arr) {
 						let data = null;
 
 						if (file === null) {
-							setError(`Could not find file associated with the costume ${costume.name}.`);
-							
 							data = await downloadAsset(costume.md5ext);
 						} else {
 							data = file.data;
+						}
+
+						if (data === null) {
+							setError(`Could not find file associated with the costume ${costume.name}.`);
 						}
 
 						obj.targets[i].costumes[j].data = data;
@@ -168,11 +172,13 @@ async function decodeScratch2or3Project(arr) {
 					let data = null;
 
 					if (file === null) {
-						setError(`Could not find file associated with the sound ${sound.name}`);
-
 						data = await downloadAsset(sound.md5);
 					} else {
 						data = file.data;
+					}
+
+					if (data === null) {
+						setError(`Could not find file associated with the sound ${sound.name}.`);
 					}
 
 					obj.sounds[i].data = data;
@@ -186,11 +192,13 @@ async function decodeScratch2or3Project(arr) {
 					let data = null;
 
 					if (file === null) {
-						setError(`Could not find file associated with the costume ${costume.name}.`);
-
 						data = await downloadAsset(costume.baseLayerMD5);
 					} else {
 						data = file.data;
+					}
+
+					if (data === null) {
+						setError(`Could not find file associated with the costume ${costume.name}.`);
 					}
 
 					obj.costumes[i].data = data;
@@ -206,11 +214,13 @@ async function decodeScratch2or3Project(arr) {
 							let data = null;
 
 							if (file === null) {
-								setError(`Could not find file associated with the costume ${costume.name}.`);
-
 								data = await downloadAsset(costume.baseLayerMD5);
 							} else {
 								data = file.data;
+							}
+
+							if (data === null) {
+								setError(`Could not find file associated with the costume ${costume.name}.`);
 							}
 
 							obj.children[i].costumes[j].data = data;
@@ -224,11 +234,13 @@ async function decodeScratch2or3Project(arr) {
 							let data = null;
 
 							if (file === null) {
-								setError(`Could not find file associated with the sound ${sound.name}`);
-
 								data = await downloadAsset(sound.md5);
 							} else {
 								data = file.data;
+							}
+
+							if (data === null) {
+								setError(`Could not find file associated with the sound ${sound.name}.`);
 							}
 
 							obj.children[i].sounds[j].data = data;
@@ -242,11 +254,13 @@ async function decodeScratch2or3Project(arr) {
 				let data = null;
 
 				if (file === null) {
-					setError("Could not find Scratch 2 pen layer data.");
-
 					data = await downloadAsset(obj.penLayerMD5);
 				} else {
 					data = file.data;
+				}
+
+				if (data === null) {
+					setError("Could not find Scratch 2 pen layer data.");
 				}
 
 				obj.penLayerData = data;
