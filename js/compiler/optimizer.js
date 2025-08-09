@@ -1825,35 +1825,6 @@ class Optimizer {
 			oldBlocks += this.ir.scripts[i].script.length;
 		}
 
-		//Merge all scripts into one
-		this.scriptsJoined = [[]];
-
-		//Set variables and lists
-		let numVariables = this.ir.variables.length;
-		for (let i = 0; i < numVariables; i++) {
-			if (this.ir.variables[i].cloud) console.warn("Cloud variables are not supported by Helium.");
-
-			let value = this.ir.variables[i].value;
-			if (this.ir.variables[i].owner !== this.ir.stageIndex) value = [value];
-
-			this.scriptsJoined[0].push([
-				"data_setvariableto",
-				i,
-				value
-			]);
-		}
-
-		for (let i = 0; i < this.ir.lists.length; i++) {
-			let value = this.ir.lists[i].value;
-			if (this.ir.lists[i].owner !== this.ir.stageIndex) value = [value];
-
-			this.scriptsJoined[0].push([
-				"data_setvariableto",
-				i + numVariables,
-				value
-			]);
-		}
-
 		//Split scripts into basic blocks (sequences of blocks that run linearly and without yielding)
 		let basicBlocks = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) basicBlocks.push([]);
@@ -1886,6 +1857,56 @@ class Optimizer {
 			console.log(basicBlocksScript, script);
 
 			basicBlocks[i] = basicBlocksScript;
+		}
+
+		//Script management variables
+		let scriptPoints = [];
+		let scriptStacks = [];
+		let scriptNexts = [];
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			let topOpcode = this.ir.scripts[i].script[0][0];
+
+			if (!isBlockActivatableHat(topOpcode) || (topOpcode === "procedures_definition")) {
+				scriptPoints.push(null);
+				scriptStacks.push(null);
+				scriptNexts.push(null);
+				continue;
+			}
+
+			scriptPoints.push(this.addNewTempVar());
+			scriptStacks.push(this.addNewTempVar());
+			scriptNexts.push(this.addNewTempVar());
+		}
+
+		let currScriptID = this.addNewTempVar();
+
+		//Merge all scripts into one
+		this.scriptsJoined = [[]];
+
+		//Set variables and lists
+		let numVariables = this.ir.variables.length;
+		for (let i = 0; i < numVariables; i++) {
+			if (this.ir.variables[i].cloud) console.warn("Cloud variables are not supported by Helium.");
+
+			let value = this.ir.variables[i].value;
+			if (this.ir.variables[i].owner !== this.ir.stageIndex) value = [value];
+
+			this.scriptsJoined[0].push([
+				"data_setvariableto",
+				i,
+				value
+			]);
+		}
+
+		for (let i = 0; i < this.ir.lists.length; i++) {
+			let value = this.ir.lists[i].value;
+			if (this.ir.lists[i].owner !== this.ir.stageIndex) value = [value];
+
+			this.scriptsJoined[0].push([
+				"data_setvariableto",
+				i + numVariables,
+				value
+			]);
 		}
 
 		//Add while and switch to joined scripts
