@@ -1852,9 +1852,9 @@ class Optimizer {
 				//console.log(block, opcode);
 			}
 
-			basicBlocksScript.push([basicBlockStart, script.length]);
+			if (basicBlockStart < script.length) basicBlocksScript.push([basicBlockStart, script.length]);
 
-			console.log(basicBlocksScript, script);
+			//console.log(basicBlocksScript, script);
 
 			basicBlocks[i] = basicBlocksScript;
 		}
@@ -1873,9 +1873,17 @@ class Optimizer {
 				continue;
 			}
 
-			scriptPoints.push(this.addNewTempVar());
-			scriptStacks.push(this.addNewTempVar());
-			scriptNexts.push(this.addNewTempVar());
+			let newScriptPoint = this.addNewTempVar();
+			let newScriptStack = this.addNewTempVar();
+			let newScriptNext = this.addNewTempVar();
+
+			this.ir.variables[newScriptPoint].value = [-1]; //An array to account for clones of the script
+			this.ir.variables[newScriptStack].value = [[]];
+			this.ir.variables[newScriptNext].value = [-1];
+
+			scriptPoints.push(newScriptPoint);
+			scriptStacks.push(newScriptStack);
+			scriptNexts.push(newScriptNext);
 		}
 
 		let currScriptID = this.addNewTempVar();
@@ -1916,8 +1924,26 @@ class Optimizer {
 		]);
 
 		this.scriptsJoined.push([
-			["helium_whilecheck", true]
+			["helium_whilecheck", true],
+			["helium_while", {script: 2}]
 		]);
+
+		this.scriptsJoined.push([
+			["helium_whilecheck", false]
+		]);
+
+		//Green flags always run first so we put their code at the start
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			let topOpcode = this.ir.scripts[i].script[0][0];
+
+			if (topOpcode !== 'event_whenflagclicked') continue;
+
+			let switchStatement = ["helium_switch", ["data_variable", scriptPoints[i]]];
+
+			this.scriptsJoined[2].push(switchStatement);
+
+			console.log(topOpcode, i, this.ir.scripts[i].script, basicBlocks[i]);
+		}
 
 		console.log(this.scriptsJoined);
 
