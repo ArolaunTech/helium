@@ -1938,6 +1938,8 @@ class Optimizer {
 
 			if (topOpcode !== 'event_whenflagclicked') continue;
 
+			this.scriptsJoined.push([]);
+
 			let switchStatement = ["helium_switch", ["data_variable", scriptPoints[i]]];
 
 			this.scriptsJoined[2].push(switchStatement);

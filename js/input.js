@@ -18,6 +18,53 @@ const plusZoom = document.getElementById("addzoom");
 const uploadSB = document.getElementById("scratchfileinput");
 
 //Functions
+function isKeyScratchKey(key) {
+	key = String(key);
+
+	switch(key) {
+		case " ":
+		case "Up":
+		case "Left":
+		case "Down":
+		case "Right":
+		case "Enter":
+		case "ArrowUp":
+		case "ArrowLeft":
+		case "ArrowDown":
+		case "ArrowRight":
+			return true;
+	}
+
+	return (key.length === 1);
+}
+
+function keyToScratchKey(key) {
+	key = String(key);
+
+	switch(key) {
+		case " ":
+			return " ";
+		case "Up":
+		case "ArrowUp":
+			return "Up";
+		case "Left":
+		case "ArrowLeft":
+			return "Left";
+		case "Down":
+		case "ArrowDown":
+			return "Down";
+		case "Right":
+		case "ArrowRight":
+			return "Right";
+		case "Enter":
+			return "Enter";
+	}
+
+	if (key.length > 1) return "";
+
+	return key.toUpperCase();
+}
+
 function updatePauseButton() {
 	if (paused) {
 		pause.src = "images/play.svg";
@@ -107,6 +154,24 @@ function fixUrl() {
 	}
 }
 
+function keyPress(event) {
+	if (!event.key) return;
+	if (!isKeyScratchKey(event.key)) return;
+
+	let scratchKey = keyToScratchKey(event.key);
+
+	console.log(event, scratchKey, event.type);
+}
+
+function keyUnPress(event) {
+	if (!event.key) return;
+	if (!isKeyScratchKey(event.key)) return;
+
+	let scratchKey = keyToScratchKey(event.key);
+
+	console.log(event, scratchKey, event.type);
+}
+
 //Events
 pause.addEventListener("click", togglePauseButton);
 settings.addEventListener("click", openSettingsDialog);
@@ -119,3 +184,6 @@ plusZoom.addEventListener("click", increaseZoom);
 uploadSB.addEventListener("change", uploadFile);
 
 urlInput.addEventListener("input", fixUrl);
+
+document.addEventListener("keydown", keyPress);
+document.addEventListener("keyup", keyUnPress);
