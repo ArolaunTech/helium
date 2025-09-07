@@ -160,7 +160,7 @@ function keyPress(event) {
 
 	let scratchKey = keyToScratchKey(event.key);
 
-	console.log(event, scratchKey, event.type);
+	globalProjectRunner.handleKeyInput(scratchKey, true);
 }
 
 function keyUnPress(event) {
@@ -169,7 +169,7 @@ function keyUnPress(event) {
 
 	let scratchKey = keyToScratchKey(event.key);
 
-	console.log(event, scratchKey, event.type);
+	globalProjectRunner.handleKeyInput(scratchKey, false);
 }
 
 //Events

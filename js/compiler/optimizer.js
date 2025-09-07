@@ -1295,7 +1295,12 @@ class Optimizer {
 				], owner);
 			}
 			case "control_while": {
-				this.ir.scripts[block[2].script].script.splice(0, 0, ["helium_whilecheck", block[1]]);
+				this.ir.scripts.push({
+					owner: owner,
+					script: [
+						["helium_break"]
+				]});
+				this.ir.scripts[block[2].script].script.splice(0, 0, ["control_if", ["operator_not", block[1]], {script: this.ir.scripts.length - 1}]);
 
 				return this.simplifyScript([
 					[
@@ -1825,6 +1830,26 @@ class Optimizer {
 			oldBlocks += this.ir.scripts[i].script.length;
 		}
 
+		/*============================================*
+		 *               Script Merging               *
+		 *============================================*
+		 *
+		 * At this point, Helium takes the scripts in your project and
+		 * merges them together, putting the script switching logic
+		 * into the new script's structure (TO-DO).
+		 * 
+		 * What happens every tick in Scratch: 
+		 * 
+		 * 1. Clean up "killed threads" (remove scripts that have
+		 *    finished from the list of active scripts)
+		 *
+		 * 2. Activate relevant edge-activated hat blocks
+		 *    (event_whentouchingobject and event_whengreaterthan).
+		 *    Other hat blocks can be activated during a tick.
+		 * 
+		 * 3. idk yet
+		 */
+
 		//Split scripts into basic blocks (sequences of blocks that run linearly and without yielding)
 		let basicBlocks = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) basicBlocks.push([]);
@@ -1858,6 +1883,8 @@ class Optimizer {
 
 			basicBlocks[i] = basicBlocksScript;
 		}
+
+		console.log(basicBlocks);
 
 		//Script management variables
 		let scriptPoints = [];
@@ -1924,12 +1951,11 @@ class Optimizer {
 		]);
 
 		this.scriptsJoined.push([
-			["helium_whilecheck", true],
 			["helium_while", {script: 2}]
 		]);
 
 		this.scriptsJoined.push([
-			["helium_whilecheck", false]
+			["helium_break"]
 		]);
 
 		//Green flags always run first so we put their code at the start
@@ -1937,6 +1963,39 @@ class Optimizer {
 			let topOpcode = this.ir.scripts[i].script[0][0];
 
 			if (topOpcode !== 'event_whenflagclicked') continue;
+
+			let scriptsToAdd = [i];
+			for (let j = 0; j < this.ir.scripts.length; j++) { //Iterate over all functions because they can be visited by a green flag too
+				let secondaryTopOpcode = this.ir.scripts[j].script[0][0];
+
+				if (secondaryTopOpcode !== 'procedures_definition') continue;
+				if (this.ir.scripts[i].owner !== this.ir.scripts[j].owner) continue; //Scripts cannot run procedures in a different sprite
+
+				scriptsToAdd.push(j);
+			}
+
+			for (let j = 0; j < scriptsToAdd.length; j++) {
+				//console.log(scriptsToAdd[j], this.ir.scripts[scriptsToAdd[j]].script);
+				let script = this.ir.scripts[scriptsToAdd[j]].script;
+				for (let k = 0; k < script.length; k++) {
+					let block = script[k];
+
+					switch (block[0]) {
+						case 'control_if_else':
+							scriptsToAdd.push(block[3].script);
+						case 'control_if':
+							scriptsToAdd.push(block[2].script);
+							break;
+						case 'helium_while':
+							scriptsToAdd.push(block[1].script);
+							break;
+					}
+				}
+			}
+
+			for (let j = 0; j < scriptsToAdd.length; j++) {
+				console.log(i, j, scriptsToAdd[j], basicBlocks[scriptsToAdd[j]], this.ir.scripts[scriptsToAdd[j]].script);
+			}
 
 			this.scriptsJoined.push([]);
 
