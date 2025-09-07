@@ -1858,19 +1858,21 @@ class Optimizer {
 			let basicBlocksScript = [];
 
 			let basicBlockStart = isBlockActivatableHat(script[0][0]) ? 1 : 0;
-			for (let j = 1; j < script.length; j++) {
+			for (let j = basicBlockStart; j < script.length; j++) {
 				let block = script[j];
 				let opcode = block[0];
 
 				switch (opcode) {
 					case 'control_if':
 					case 'control_if_else':
-						basicBlocksScript.push([basicBlockStart, j]);
+						if (j > basicBlockStart) basicBlocksScript.push([basicBlockStart, j]);
+						basicBlocksScript.push([j]);
 						basicBlockStart = j + 1;
 						break;
 					default:
 						if (this.canSkip(block)) {
-							basicBlocksScript.push([basicBlockStart, j]);
+							if (j > basicBlockStart) basicBlocksScript.push([basicBlockStart, j]);
+							basicBlocksScript.push([j]);
 							basicBlockStart = j + 1;
 						}
 				}
