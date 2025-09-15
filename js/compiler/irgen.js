@@ -529,9 +529,16 @@ function cleanScratch3Block(obj, owner, id) {
 					]
 				};
 			} else {
+				if (out.inputs[prop][1][1] === null) {
+					continue;
+				}
 				input = {id: prop, isBlock: false, value: out.inputs[prop][1][1]};
+
 			}
 		} else {
+			if (out.inputs[prop][1] === null) {
+				continue;
+			}
 			input = {id: prop, isBlock: (typeof out.inputs[prop][1] === "string"), value: out.inputs[prop][1]};
 		}
 
@@ -590,19 +597,15 @@ function createScratch3Block(block, blocks, blockmap) {
 		return 0;
 	});
 
-	let inputsUsed = [];
-	let fieldsUsed = [];
-	for (let i = 0; i < block.inputs.length; i++) {
-		inputsUsed.push(false);
-	}
-	for (let i = 0; i < block.fields.length; i++) {
-		fieldsUsed.push(false);
-	}
+	let inputsUsed = Array(block.inputs.length).fill(false);
+	let fieldsUsed = Array(block.fields.length).fill(false);
 	if (scratch3OpcodeMap.hasOwnProperty(block.opcode)) {
 		//console.log(block.opcode, true);
 		let blockInfo = scratch3OpcodeMap[block.opcode];
 		let argMap = blockInfo.argMap;
 		for (let i = 0; i < argMap.length; i++) {
+			//if (block.opcode === 'control_if_else') console.log(argMap, argMap[i], block.inputs);
+
 			let arg = argMap[i];
 			if (arg.type === 'input') {
 				let k = -1;
@@ -716,6 +719,8 @@ function createScratch3Block(block, blocks, blockmap) {
 			}
 		}
 	}
+
+	//if (newBlock[0] === 'control_if_else') console.log(structuredClone(newBlock));
 
 	return newBlock;
 }
