@@ -1928,7 +1928,7 @@ class Optimizer {
 
 		let currScriptID = this.addNewTempVar();
 
-		let nodes = [];
+		/*let nodes = [];
 		let nodeIndices = [];
 		for (let i = 0; i < this.ir.scripts.length; i++) {
 			nodeIndices.push(Array(this.ir.scripts[i].script.length).fill(-1));
@@ -1973,19 +1973,8 @@ class Optimizer {
 							break;
 						}
 						case 'helium_while': {}
-						case "motion_glideto": {}
-						case "motion_glidesecstoxy": {}
-						case "looks_sayforsecs": {}
-						case "looks_thinkforsecs": {}
 						case "looks_switchbackdroptoandwait": {}
-						case "sound_playuntildone": {}
 						case "event_broadcastandwait": {}
-						case "control_wait": {}
-						case "control_wait_until": {}
-						case "sensing_askandwait": {}
-						case "music_playDrumForBeats": {}
-						case "music_restForBeats": {}
-						case "music_playNoteForBeats": {}
 						case "text2speech_speakAndWait": {}
 						case "ev3_motorTurnClockwise": {}
 						case "ev3_motorTurnCounterClockwise": {}
@@ -2032,7 +2021,7 @@ class Optimizer {
 
 		console.log(nodes);
 
-		/*/Merge all scripts into one
+		/*///Merge all scripts into one
 		this.scriptsJoined = [[]];
 
 		//Set variables and lists
@@ -2112,10 +2101,12 @@ class Optimizer {
 
 			let switchStatement = ["helium_switch", ["data_variable", this.projectVars["scriptpoint" + i]], [], []];
 			let translateBlocks = [];
+			let startBlocks = new Map();
 
 			for (let j = 0; j < scriptsToAdd.length; j++) {
+				startBlocks.set(scriptsToAdd[j], translateBlocks.length);
 				for (let k = 0; k < basicBlocks[scriptsToAdd[j]].length; k++) {
-					translateBlocks.push([scriptsToAdd[j], basicBlocks[scriptsToAdd[j]][k]]);
+					translateBlocks.push([scriptsToAdd[j], basicBlocks[scriptsToAdd[j]][k], this.scriptsJoined.length, switchStatement[2].length]);
 
 					this.scriptsJoined.push([]);
 					switchStatement[2].push(switchStatement[2].length);
@@ -2123,74 +2114,103 @@ class Optimizer {
 				}
 			}
 
-			let conditionIndex = 0;
-			for (let j = 0; j < scriptsToAdd.length; j++) {
-				for (let k = 0; k < basicBlocks[scriptsToAdd[j]].length; k++) {
-					let conditionScript = switchStatement[3][conditionIndex].script;
+			for (let j = 0; j < translateBlocks.length; j++) {
+				let scriptIndex = translateBlocks[j][0];
+				let basicBlock = translateBlocks[j][1];
+				let scriptInsert = translateBlocks[j][2];
 
-					let script = this.ir.scripts[scriptsToAdd[j]].script;
-					let bounds = basicBlocks[scriptsToAdd[j]][k];
-					if (bounds.length === 1) {
-						let block = script[bounds[0]];
-						let opcode = block[0];
+				let script = this.ir.scripts[scriptIndex].script;
+				
+				if (basicBlock.length === 1) {
+					let block = script[basicBlock[0]];
+					let opcode = block[0];
 
-						switch (opcode) {
-							case 'control_if':
-							case 'control_if_else':
-							case 'helium_while':
-							case "motion_glideto":
-							case "motion_glidesecstoxy":
-							case "looks_sayforsecs":
-							case "looks_thinkforsecs":
-							case "looks_switchbackdroptoandwait":
-							case "sound_playuntildone":
-							case "event_broadcastandwait":
-							case "control_wait":
-							case "control_wait_until":
-							case "sensing_askandwait":
-							case "music_playDrumForBeats":
-							case "music_restForBeats":
-							case "music_playNoteForBeats":
-							case "text2speech_speakAndWait":
-							case "ev3_motorTurnClockwise":
-							case "ev3_motorTurnCounterClockwise":
-							case "ev3_beep":
-							case "boost_motorOnFor":
-							case "boost_motorOnForRotation":
-							case "wedo2_motorOnFor":
-							case "music_midiPlayDrumForBeats":
-							case "wedo2_playNoteFor":
-							case "control_stop":
-							case "procedures_call":
-								break;
-							default:
-								console.warn("Fix around line 2000 or so");
+					console.log(script, scriptIndex, basicBlock[0], block, opcode, scriptInsert);
+
+					switch (opcode) {
+						case 'control_if': {
+							let truthyscript = translateBlocks[startBlocks.get(block[2].script)][2];
+							let truthyswitchvalue = translateBlocks[startBlocks.get(block[2].script)][3];
+							console.log(block[2].script, truthyscript, truthyswitchvalue);
+
+							this.scriptsJoined.push([[
+								"data_setvariableto",
+								this.projectVars["scriptpoint" + i],
+								truthyswitchvalue
+							]]);
+							this.scriptsJoined[scriptInsert].push(
+								[
+									"control_if",
+									block[1],
+									{script: this.scriptsJoined.length - 1}
+								]
+							);
+							break;
 						}
-
-						console.log(i, j, scriptsToAdd[j], bounds, script, block, opcode, conditionScript);
-					} else {
-						//No breaks - execute code as normal
-						for (let additionIndex = bounds[0]; additionIndex < bounds[1]; additionIndex++) {
-							let block = script[additionIndex];
-							block.push({owner: this.ir.scripts[i].owner});
-
-							this.scriptsJoined[conditionScript].push(block);
-							//console.log(i, j, scriptsToAdd[j], bounds, script, block, conditionScript);
+						case 'control_if_else': {
+							this.scriptsJoined.push([]);
+							this.scriptsJoined.push([]);
+							this.scriptsJoined[scriptInsert].push(
+								[
+									"control_if_else",
+									block[1],
+									{script: this.scriptsJoined.length - 2},
+									{script: this.scriptsJoined.length - 1}
+								]
+							);
+							break;
 						}
+						case 'helium_while': {
+							break;
+						}
+						case "looks_switchbackdroptoandwait": {
+							break;
+						}
+						case "event_broadcastandwait": {
+							break;
+						}
+						case "text2speech_speakAndWait": {
+							break;
+						}
+						case "ev3_motorTurnClockwise": {
+							break;
+						}
+						case "ev3_motorTurnCounterClockwise": {
+							break;
+						}
+						case "ev3_beep": {
+							break;
+						}
+						case "boost_motorOnFor": {
+							break;
+						}
+						case "boost_motorOnForRotation": {
+							break;
+						}
+						case "wedo2_motorOnFor": {
+							break;
+						}
+						case "music_midiPlayDrumForBeats": {
+							break;
+						}
+						case "wedo2_playNoteFor": {
+							break;
+						}
+						case "control_stop": {
+							break;
+						}
+						case "procedures_call": {
+							break;
+						}
+						default: {}
 					}
-
-					conditionIndex++;
+				} else {
+					console.log(script, scriptIndex, basicBlock[0], basicBlock[1], scriptInsert);
 				}
 			}
-
-			console.log(translateBlocks);
-
-			this.scriptsJoined[2].push(switchStatement);
-
-			console.log(topOpcode, i, this.ir.scripts[i].script, basicBlocks[i]);
 		}
 
-		console.log(this.scriptsJoined);*/
+		console.log(this.scriptsJoined);
 
 		/*
 		//SSA (not really)
