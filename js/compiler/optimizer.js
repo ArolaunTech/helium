@@ -1831,6 +1831,19 @@ class Optimizer {
 			oldBlocks += this.ir.scripts[i].script.length;
 		}
 
+		//Insert helium_break references
+		for (let i = 0; i < this.ir.scripts.length; i++) {
+			let script = this.ir.scripts[i].script;
+			for (let j = 0; j < script.length; j++) {
+				let block = script[j];
+				let opcode = block[0];
+
+				if (opcode !== 'helium_while') continue;
+
+				this.ir.scripts[this.ir.scripts[block[1].script].script[0][2].script].script[0].push([i, j]);
+			}
+		}
+
 		/*============================================*
 		 *               Script Merging               *
 		 *============================================*
@@ -2129,9 +2142,8 @@ class Optimizer {
 
 					switch (opcode) {
 						case 'control_if': {
-							let truthyscript = translateBlocks[startBlocks.get(block[2].script)][2];
 							let truthyswitchvalue = translateBlocks[startBlocks.get(block[2].script)][3];
-							console.log(block[2].script, truthyscript, truthyswitchvalue);
+							//console.log(block[2].script, truthyswitchvalue);
 
 							this.scriptsJoined.push([[
 								"data_setvariableto",
@@ -2143,20 +2155,31 @@ class Optimizer {
 									"control_if",
 									block[1],
 									{script: this.scriptsJoined.length - 1}
-								]
+								] //Insert script continuation here
 							);
 							break;
 						}
 						case 'control_if_else': {
-							this.scriptsJoined.push([]);
-							this.scriptsJoined.push([]);
+							let truthyswitchvalue = translateBlocks[startBlocks.get(block[2].script)][3];
+							let falsyswitchvalue = translateBlocks[startBlocks.get(block[3].script)][3];
+
+							this.scriptsJoined.push([[
+								"data_setvariableto",
+								this.projectVars["scriptpoint" + i],
+								truthyswitchvalue
+							]]);
+							this.scriptsJoined.push([[
+								"data_setvariableto",
+								this.projectVars["scriptpoint" + i],
+								falsyswitchvalue
+							]]);
 							this.scriptsJoined[scriptInsert].push(
 								[
 									"control_if_else",
 									block[1],
 									{script: this.scriptsJoined.length - 2},
 									{script: this.scriptsJoined.length - 1}
-								]
+								] //Insert script continuation here
 							);
 							break;
 						}
