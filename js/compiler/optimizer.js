@@ -78,6 +78,7 @@ class Optimizer {
 		switch (opcode) {
 			case "control_stop":
 				return block[1] !== 'other scripts in sprite';
+			case "control_delete_this_clone":
 			case "procedures_call":
 				/*if (warp) return false;
 				return !block[block.length - 1].warp;*/
@@ -1876,24 +1877,15 @@ class Optimizer {
 				let block = script[j];
 				let opcode = block[0];
 
-				switch (opcode) {
-					case 'control_if':
-					case 'control_if_else':
-						if (j > basicBlockStart) basicBlocksScript.push([basicBlockStart, j]);
-						basicBlocksScript.push([j]);
-						basicBlockStart = j + 1;
-						break;
-					default:
-						if (this.canSkip(block)) {
-							if (j > basicBlockStart) basicBlocksScript.push([basicBlockStart, j]);
-							basicBlocksScript.push([j]);
-							basicBlockStart = j + 1;
-						}
+				if (this.canSkip(block) || (opcode === 'control_if') || (opcode === 'control_if_else')) {
+					if (j > basicBlockStart) basicBlocksScript.push([basicBlockStart, j]);
+					basicBlocksScript.push([j]);
+					basicBlockStart = j + 1;
 				}
-				//console.log(block, opcode);
 			}
 
 			if (basicBlockStart < script.length) basicBlocksScript.push([basicBlockStart, script.length]);
+			basicBlocksScript.push([script.length, script.length]);
 
 			//console.log(basicBlocksScript, script);
 
@@ -2112,20 +2104,36 @@ class Optimizer {
 				}
 			}
 
+			this.scriptsJoined[2].push([
+				"helium_while",
+				{script: this.scriptsJoined.length}
+			]);
+
+			this.scriptsJoined.push([]);
+
 			let switchStatement = ["helium_switch", ["data_variable", this.projectVars["scriptpoint" + i]], [], []];
+			let switchScript = this.scriptsJoined.length - 1;
 			let translateBlocks = [];
 			let startBlocks = new Map();
+			let blocks = new Map();
 
 			for (let j = 0; j < scriptsToAdd.length; j++) {
 				startBlocks.set(scriptsToAdd[j], translateBlocks.length);
+				let scriptBlocks = new Map();
+
 				for (let k = 0; k < basicBlocks[scriptsToAdd[j]].length; k++) {
+					scriptBlocks.set(basicBlocks[scriptsToAdd[j]][k][0], translateBlocks.length);
 					translateBlocks.push([scriptsToAdd[j], basicBlocks[scriptsToAdd[j]][k], this.scriptsJoined.length, switchStatement[2].length]);
 
 					this.scriptsJoined.push([]);
 					switchStatement[2].push(switchStatement[2].length);
 					switchStatement[3].push({script: this.scriptsJoined.length - 1});
 				}
+
+				blocks.set(scriptsToAdd[j], scriptBlocks);
 			}
+
+			this.scriptsJoined[switchScript].push(switchStatement);
 
 			for (let j = 0; j < translateBlocks.length; j++) {
 				let scriptIndex = translateBlocks[j][0];
@@ -2184,6 +2192,11 @@ class Optimizer {
 							break;
 						}
 						case 'helium_while': {
+							this.scriptsJoined[scriptInsert].push([
+								"data_setvariableto",
+								this.projectVars["scriptpoint" + i],
+								startBlocks.get(block[1].script)
+							]);
 							break;
 						}
 						case "looks_switchbackdroptoandwait": {
@@ -2222,15 +2235,51 @@ class Optimizer {
 						case "control_stop": {
 							break;
 						}
+						case 'control_delete_this_clone': {
+							break;
+						}
 						case "procedures_call": {
 							break;
 						}
 						default: {}
 					}
 				} else {
-					console.log(script, scriptIndex, basicBlock[0], basicBlock[1], scriptInsert);
+					for (let i = basicBlock[0]; i < basicBlock[1]; i++) {
+						let block = script[i];
+						let opcode = block[0];
+
+						switch (opcode) { //Catch blocks that modify execution or scripts
+							case 'control_create_clone_of': {
+								console.log(block, opcode, i, script);
+								break;
+							}
+							case 'control_all_at_once': {
+								console.warn("Helium currently does not support the block \"control_all_at_once\".");
+								break;
+							}
+							case 'helium_break': {
+								if (block.length < 2) {
+									console.warn("helium_break without a reference", block, opcode, i, script);
+									break;
+								}
+
+								let outerscriptmap = blocks.get(block[1][0]);
+								this.scriptsJoined[scriptInsert].push([
+									"data_setvariableto",
+									this.projectVars["scriptpoint" + i],
+									outerscriptmap.get(block[1][1] + 1)
+								]);
+								break;
+							}
+							default: {
+								this.scriptsJoined[scriptInsert].push(block);
+							}
+						}
+					}
 				}
 			}
+
+			console.log(blocks);
 		}
 
 		console.log(this.scriptsJoined);
