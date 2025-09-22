@@ -2151,7 +2151,6 @@ class Optimizer {
 					switch (opcode) {
 						case 'control_if': {
 							let truthyswitchvalue = translateBlocks[startBlocks.get(block[2].script)][3];
-							//console.log(block[2].script, truthyswitchvalue);
 
 							this.scriptsJoined.push([[
 								"data_setvariableto",
@@ -2160,11 +2159,21 @@ class Optimizer {
 							]]);
 							this.scriptsJoined[scriptInsert].push(
 								[
+									"data_setvariableto",
+									this.projectVars["scriptpoint" + i],
+									blocks.get(scriptIndex).get(basicBlock[0] + 1)
+								], [
 									"control_if",
 									block[1],
 									{script: this.scriptsJoined.length - 1}
-								] //Insert script continuation here
+								]
 							);
+							this.scriptsJoined[translateBlocks[startBlocks.get(block[2].script)][2]].push([
+								"data_setvariableto",
+								this.projectVars["scriptpoint" + i],
+								blocks.get(scriptIndex).get(basicBlock[0] + 1)
+							]);
+
 							break;
 						}
 						case 'control_if_else': {
@@ -2187,15 +2196,26 @@ class Optimizer {
 									block[1],
 									{script: this.scriptsJoined.length - 2},
 									{script: this.scriptsJoined.length - 1}
-								] //Insert script continuation here
+								]
 							);
+							this.scriptsJoined[translateBlocks[startBlocks.get(block[2].script)][2]].push([
+								"data_setvariableto",
+								this.projectVars["scriptpoint" + i],
+								blocks.get(scriptIndex).get(basicBlock[0] + 1)
+							]);
+							this.scriptsJoined[translateBlocks[startBlocks.get(block[3].script)][2]].push([
+								"data_setvariableto",
+								this.projectVars["scriptpoint" + i],
+								blocks.get(scriptIndex).get(basicBlock[0] + 1)
+							]);
+
 							break;
 						}
 						case 'helium_while': {
 							this.scriptsJoined[scriptInsert].push([
 								"data_setvariableto",
 								this.projectVars["scriptpoint" + i],
-								startBlocks.get(block[1].script)
+								translateBlocks[startBlocks.get(block[1].script)][3]
 							]);
 							break;
 						}
@@ -2267,7 +2287,7 @@ class Optimizer {
 								this.scriptsJoined[scriptInsert].push([
 									"data_setvariableto",
 									this.projectVars["scriptpoint" + i],
-									outerscriptmap.get(block[1][1] + 1)
+									translateBlocks[outerscriptmap.get(block[1][1] + 1)][3]
 								]);
 								break;
 							}
